@@ -1,0 +1,132 @@
+#!/bin/bash
+#
+#
+# Title: task
+#
+# Description:
+#   Script intended for execution in cron to detect and send alerts of external
+#   (public) IP address changes. Uses jjo93sa/ip-utils to retrieve IP address
+#   from ipinfo.io and pushover to send push notifications with pushover.net.
+#   If a new Ip address is detected, a push notification is set and an attempt
+#   is made to update a DuckDNS domain. All these services require user and/or
+#   service tokens, which must be set in the environment file, checkip.env.
+#
+#   Docker container cron-template requires a script called task to implement
+#   the function that is to be executed by cron. This script fulfils that
+#   requirement.
+#
+# Usage:
+#   Run this script in a crontab, for example, using a "concrete" instance of
+#   Docker container cron-template.
+#
+# Maintainer: dr.j.osborne@gmail.com
+#
+# License: MIT, see LICENSE file in repository root
+#
+
+: ${REPEAT=5}
+: ${DELAY=30}
+COUNT=0
+
+#TODO: Should perhaps convert these to tests to ensure that the files exist
+
+# Source logging tools and script control tools from script-utils repo
+source /usr/local/bin/script_logging
+source /usr/local/bin/script_ctrl
+
+# Source notification script from notification-utils repo
+source /usr/local/bin/pushover
+
+# Source ip and dns scripts from ip-utils repo
+source /usr/local/bin/get_ip_info
+source /usr/local/bin/update_dns
+
+# Test if this script is blocked, and exit if it is
+if test_blocked
+then
+   exit 0
+fi
+
+until (( COUNT > REPEAT ))
+do
+    (( COUNT++ ))
+
+    ALERT_MSG="$COUNT: "
+
+    # Get the current external IP address using function in get_external_ip.sh
+    IP_ADDRESS=$(get_external_ip)
+
+    CHECK_IP_EXIT_STATUS=$?
+
+    # IP_ADDRESS might still be improperly set
+    #+ Check for a non zero exit status from get_external_ip and check that
+    #+ IP_ADDRESS isn't empty
+    if [ $CHECK_IP_EXIT_STATUS -ge 1 ] || [ -z "$IP_ADDRESS" ]
+    then
+        # Build a message string with the failure date time and the exit code
+        ALERT_MSG+="IP address detection failed: ipinfo returned $CHECK_IP_EXIT_STATUS"
+
+        # Since we didn't get an IP address, log it as 0.0.0.0 so we get a good
+        # message with a proper IP when ipinfo next works
+        update_run "0.0.0.0"
+    else
+        # Get the IP address from the RUN_FILE, where it was stored at last change
+        OLD_IP_ADDRESS=$(grep -Eo '[[:digit:]]{1,3}\.[[:digit:]]{1,3}\.[[:digit:]]{1,3}\.[[:digit:]]{1,3}' $RUN_FILE)
+
+        # Set OLD_IP_ADDRESS to 0.0.0.0 if no address found in RUN_FILE, e.g start-up
+        [[ -z "$OLD_IP_ADDRESS" ]] && OLD_IP_ADDRESS="0.0.0.0"
+
+        # Now the smart stuff, log an IP address change, if there's a difference
+        if [ "$IP_ADDRESS" != "$OLD_IP_ADDRESS" ]
+        then
+            # We have a new IP address
+
+            # Build a message string with the date time and the new IP
+            ALERT_MSG+="IP change from $OLD_IP_ADDRESS to $IP_ADDRESS"
+
+            # Now update DuckDNS
+            #TODO: If $DOM_TO_CHECK isn't set, let's not do this m'k
+            DNS_RET=$(updatedns $DOM_TO_CHECK $IP_ADDRESS)
+
+            # Test curl return - IF was good should have "OK200"
+            if [[ "$DNS_RET" != "OK200" || "$?" -gt 0 ]]
+            then
+                ALERT_MSG+=" but DuckDNS NOT updated $DNS_RET"
+            else
+                ALERT_MSG+=" and DuckDNS returned $DNS_RET"
+            fi
+
+            # And update the run file with the new address, timestamp
+            #update_run_file "$IP_ADDRESS"
+            update_run "$IP_ADDRESS"
+        else
+            # We haven't got a new IP address
+            ALERT_MSG=
+
+            # Just update the timestamp of the run file so we know we've run
+            update_run
+        fi
+
+        # Break here--we've either got the same IP or got a new IP and don't
+        # need to loop further
+        break
+    fi
+
+    sleep $DELAY
+done
+
+# If we've got an ALERT message, handle it
+if [ -n "$ALERT_MSG" ]
+then
+    # Send the new IP message to push over
+    #pushover "$ALERT_MSG"
+
+    # And update the log file
+    #log_message "$ALERT_MSG"
+    echo "$ALERT_MSG" | write_log | pushover
+fi
+
+# Delete old log files
+clean_old_logs
+
+exit $?
