@@ -49,6 +49,8 @@
 #
 # Maintainer: dr.j.osborne@gmail.com
 #
+# License: MIT, see file in repository root.
+#
 ARG BASE_IMAGE=alpine
 FROM $BASE_IMAGE
 
