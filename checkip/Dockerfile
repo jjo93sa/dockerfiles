@@ -39,7 +39,7 @@
 #   Usage of this file is very simple:
 #
 #   (1) Create an image of cron-template/Dockerfile
-#   (2) Build this file, specifying the correct repository abd cron times:
+#   (2) Build this file, specifying the correct repository and cron times:
 #
 #           docker build --build-arg CRON_SPEC="<insert>" \
 #                        --build-arg REPO="XXXX" \
@@ -47,7 +47,8 @@
 #
 #       (which requires a previously built XXX/cron-template image)
 #
-#   (3) Run a container from the image so created:
+#   (3) Edit checkip.env with your toekn information
+#   (4) Run a container from the image built in (2):
 #
 #           docker run -d -env-file checkip.env \
 #                       --rm --name checkip <your-tag>/checkip
