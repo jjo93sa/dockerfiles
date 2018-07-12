@@ -67,7 +67,7 @@ ONBUILD ARG CRON_SPEC="* * * * *"
 # Edit the root crontab, executing script task.sh as requested at build time
 # (through build-arg), default to running once per minute per ARG above
 ONBUILD RUN sed -i -e "\$aSHELL=/bin/bash" \
-				   -e "\$a${CRON_SPEC}    /usr/local/bin/task\n" \
+                   -e "\$a${CRON_SPEC}    /usr/local/bin/task\n" \
 		   /etc/crontabs/root
 
 # Set our working directory using ONBUILD to ensure this is done in image
