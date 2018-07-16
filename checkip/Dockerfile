@@ -76,7 +76,7 @@ LABEL version "1.0"
 LABEL status "production"
 
 # Add jq and curl, which are needed in the scripts below
-RUN apk --no-cache update && apk --no-cache add jq curl
+RUN apk --no-cache add jq curl
 
 # Copy the scripts we need
 # NB: ./task is copied via an ONBUILD from parent image
