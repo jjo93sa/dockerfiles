@@ -59,7 +59,7 @@ LABEL version "1.0"
 LABEL status "production"
 
 # Install bash
-RUN apk --no-cache update && apk --no-cache add bash
+RUN apk --no-cache add bash
 
 # Default, every minute, cron entry. Can be changed during container build.
 ONBUILD ARG CRON_SPEC="* * * * *"
