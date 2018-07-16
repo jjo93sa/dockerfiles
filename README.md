@@ -2,7 +2,7 @@
 
 ### About
 
-Docker files that I use on servers, my Raspberry Pi's and on Docker for macOS. Many of these have been inspired (and not a few copied) by the incredible work of [Jess Frazelle](https://github.com/jessfraz). 
+Docker files that I use on servers, my Raspberry Pi's and on Docker for macOS. Many of these have been inspired (and not a few copied) by the incredible work of [Jess Frazelle](https://github.com/jessfraz).
 
 Typically, I use these images on macOS instead of installing the equivalent utilitiy from something like Homebrew or MacPorts.
 
