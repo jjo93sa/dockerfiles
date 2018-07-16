@@ -61,7 +61,7 @@ ARG REPO=jjo93sa/intel
 FROM alpine AS intermediate
 
 # Install git in intermediate
-RUN apk --no-cache update && apk --no-cache add git
+RUN apk --no-cache add git
 
 # Clone the repos we need
 RUN git clone https://github.com/jjo93sa/script-utils.git
