@@ -11,7 +11,7 @@
 # Usage:
 #   To use the Docker container:
 #
-#   (1) Build the image whilst in the nmap directory:
+#   (1) Build the image whilst in the wget directory:
 #
 #       docker build -t <repo>/wget .
 #
