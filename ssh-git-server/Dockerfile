@@ -1,4 +1,5 @@
-FROM alpine:3.4
+ARG BASE_IMAGE=alpine
+FROM $BASE_IMAGE
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL version "0.1"
@@ -15,7 +16,7 @@ RUN ssh-keygen -A
 # sshd_config file is edited for enable access key and disable access password
 COPY sshd_config /etc/ssh/sshd_config
 
-RUN adduser -D -s /bin/sh git \
+RUN adduser -D -s /usr/bin/git-shell git \
 	#&& echo git:12345 | chpasswd \
 	&& passwd -u git
 
