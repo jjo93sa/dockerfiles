@@ -17,7 +17,7 @@ COPY sshd_config /etc/ssh/sshd_config
 
 RUN adduser -D -s /bin/sh git \
 	#&& echo git:12345 | chpasswd \
-	&& passwd -u james
+	&& passwd -u git
 
 WORKDIR /home/git
 
