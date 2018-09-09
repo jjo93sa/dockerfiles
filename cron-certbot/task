@@ -1,0 +1,50 @@
+#!/bin/bash
+#
+#
+# Title: task
+#
+# Description:
+#   This script wraps calling EFF/Let's Encrypt certbot to get certificates for
+#   the specified domains. This script will be executed by cron, and therefore
+#   the certificates will be renewed on the specified frequency.
+#
+#   Docker container cron-template requires a script called task to implement
+#   the function that is to be executed by cron. This script fulfils that
+#   requirement.
+#
+# Usage:
+#   Run this script in a crontab, for example, using a "concrete" instance of
+#   Docker container cron-template.
+#
+# Maintainer:
+#   dr.j.osborne@gmail.com
+#
+# License:
+#   MIT, see LICENSE file in repository root
+#
+
+# Exit if no domain has been specified:
+: "${CERT_DOMAIN:?Domain must be specified using -e "CERT_DOMAIN=<domain>"}"
+
+if [ ! -d "/etc/letsencrypt/live/${CERT_DOMAN}" ]; then
+    # Then we've not yet run, so get the certificate:
+
+    # Check if an email has been supplied, otherwise send the flag
+    # --register-unsafely-without-email
+    EMAIL_CMD=${YOUR_EMAIL:---register-unsafely-without-email}
+
+    if [[ "${EMAIL_CMD}" != --register-unsafely-without-email ]]; then
+        EMAIL_CMD="--email $EMAIL_CMD"
+    fi
+
+    #TODO fix this 
+    # Using the staging server is the defaul, set STAGING to something explictly to
+    # use the production server, i.e. -e "STAGING=no"
+    STAGING_CMD=${STAGING:---staging}
+
+    certbot certonly --standalone $STAGING_CMD $EMAIL_CMD --agree-tos --no-eff-email -d $CERT_DOMAIN
+
+fi
+
+#TODO fix this so isn't run immediately after getting the certs.
+certbot renew
