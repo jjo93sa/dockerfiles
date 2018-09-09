@@ -10,35 +10,41 @@ RUN apk update && apk add --no-cache \
 	git \
 	openssh
 
-# Key generation on the server
+# Generate keys for the ssh server
 RUN ssh-keygen -A
 
-# sshd_config file is edited for enable access key and disable access password
+# Add a custom sshd_config file
 COPY sshd_config /etc/ssh/sshd_config
 
+# Add a user called git, set shell and activate (with no password?)
+# git shell is installed as part of git, it restricts shell access to git cmds
+# See: https://git-scm.com/docs/git-shell
 RUN adduser -D -s /usr/bin/git-shell git \
-	#&& echo git:12345 | chpasswd \
 	&& passwd -u git
 
+# Set the working directory, we'll mount this in a data container
 WORKDIR /home/git
 
-RUN  mkdir .ssh     \
+# Create the files and directories needed for user git's ssh
+RUN  mkdir .ssh                   \
 	&& touch .ssh/authorized_keys \
-	&& chown -R git:git .ssh  \
+	&& chown -R git:git .ssh      \
 	&& chmod 700 .ssh             \
 	&& chmod 600 .ssh/authorized_keys
 
-# More info: https://git-scm.com/docs/git-shell
+# Copy over our custom git-shell-commands: mkrepo, addkey
 COPY git-shell-commands /home/git/git-shell-commands
+
+# Copy over our template README.md
 COPY README.md /home/git/
 
-RUN mkdir repos && \
+# Create a directory for our repos
+RUN mkdir repos &&            \
 	chown -R git:git repos && \
 	chmod -R ug+rwX repos
 
 EXPOSE 22
 
-VOLUME /home/git/repos
-
+# Run the ssh server (as root?); -D ensures server doesn't run as a daemon
 ENTRYPOINT [ "/usr/sbin/sshd" ]
 CMD [ "-D" ]
