@@ -1,11 +1,11 @@
 #!/bin/bash
-#
+
 #
 # Title: task
 #
 # Description:
 #   This script wraps calling EFF/Let's Encrypt certbot to get certificates for
-#   the specified domains. This script will be executed by cron, and therefore
+#   the specified domain(s). This script will be executed by cron, and therefore
 #   the certificates will be renewed on the specified frequency.
 #
 #   Docker container cron-template requires a script called task to implement
@@ -16,6 +16,18 @@
 #   Run this script in a crontab, for example, using a "concrete" instance of
 #   Docker container cron-template.
 #
+#   Expects the following environment variables:
+#       CERT_DOMAIN - Mandatory: comma separated list of domains, no white space
+#       example: CERT_DOMAIN=abc.com,www.xyz.com,mail.xyz.com
+#
+#       YOUR_EMAIL - Optional: email address to send to EFF. If not given we try
+#       --register-unsafely-without-email switch on certbot
+#       example: YOUR_EMAIL=name@org.com
+#
+#       STAGING - Optional: set staging to anything to use production servers
+#       if STAGING isn't set, the default is to use --staging with certbot
+#       example: STAGING=no
+#
 # Maintainer:
 #   dr.j.osborne@gmail.com
 #
@@ -23,28 +35,41 @@
 #   MIT, see LICENSE file in repository root
 #
 
-# Exit if no domain has been specified:
+set -euo pipefail
+
+# Exit if no domain or list of domains has been specified:
 : "${CERT_DOMAIN:?Domain must be specified using -e "CERT_DOMAIN=<domain>"}"
 
-if [ ! -d "/etc/letsencrypt/live/${CERT_DOMAN}" ]; then
-    # Then we've not yet run, so get the certificate:
+# CERT_DOMAIN might be a comma separated list of domains, so we need to process
+# the list. Side-effect is we'll renew domains individually, but as we aren't
+# expecting many in the list, the overhead should be small
+IFS=',' read -ra ADDR <<< "$IN"
+for DOMAIN in "${ADDR[@]}"; do
 
-    # Check if an email has been supplied, otherwise send the flag
-    # --register-unsafely-without-email
-    EMAIL_CMD=${YOUR_EMAIL:---register-unsafely-without-email}
+    if [ ! -d "/etc/letsencrypt/live/${DOMAIN}" ]; then
+        # Then we already have certs, so renew this domain's certificates
+        certbot certonly --noninteractive -d $DOMAIN
+    else
+        # Then we've not yet run, so get the certificate:
 
-    if [[ "${EMAIL_CMD}" != --register-unsafely-without-email ]]; then
-        EMAIL_CMD="--email $EMAIL_CMD"
+        # Check if an email has been supplied, otherwise send the flag
+        # --register-unsafely-without-email
+        EMAIL_CMD=${YOUR_EMAIL:---register-unsafely-without-email}
+        if [[ "${EMAIL_CMD}" != --register-unsafely-without-email ]]; then
+            EMAIL_CMD="--email $EMAIL_CMD"
+        fi
+
+        # Using the staging server is the default
+        # To use the production server: -e "STAGING=no"
+        STAGING=${STAGING:---staging}
+        STAGING_CMD=""
+        if [[ "${STAGING}" = --staging ]]; then
+            STAGING_CMD="--staging"
+        fi
+
+        certbot certonly --standalone $STAGING_CMD $EMAIL_CMD --agree-tos \
+            --no-eff-email -d $CERT_DOMAIN
     fi
+    # Loop for other domains
+done
 
-    #TODO fix this 
-    # Using the staging server is the defaul, set STAGING to something explictly to
-    # use the production server, i.e. -e "STAGING=no"
-    STAGING_CMD=${STAGING:---staging}
-
-    certbot certonly --standalone $STAGING_CMD $EMAIL_CMD --agree-tos --no-eff-email -d $CERT_DOMAIN
-
-fi
-
-#TODO fix this so isn't run immediately after getting the certs.
-certbot renew

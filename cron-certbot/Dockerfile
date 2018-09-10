@@ -3,8 +3,8 @@
 #
 # Description:
 #   Docker file to run EFF/Let's Encrypt client in cron for automated
-#   certificate renewal. I based this on the Docker file found here:
-#   https://github.com/pslobo/dockerized-certbot
+#   certificate generation and renewal. I based this on the Docker file found
+#   here: https://github.com/pslobo/dockerized-certbot
 #
 #   Support for Intel & ARM builds is provided by the "REPO" build-time
 #   parameter.
@@ -29,11 +29,13 @@
 #                        -t <your-tag>/cron-certbot .
 #
 #       (which requires a previously built XXXX/cron-template image)
-#
 #   (3) Run a container from the image built in (2):
 #
-#    TODO       docker run -d -env-file checkip.env \
-#    TODO                   --rm --name checkip <your-tag>/checkip
+#           docker run -d -p80:80 -v /path/on/host:/etc/letsencrypt \
+#                    -e "YOUR_EMAIL=you@mail.og" \
+#                    -e "CERT_DOMAIN=you.org,another.org" \
+#                    -e "STAGING=no" \
+#                     --rm --name cron-certbot <your-tag>/cron-certbot
 #
 # Maintainer:
 #   dr.j.osborne@gmail.com
@@ -44,7 +46,7 @@
 #   file, is covered under the same license, see LICENSE-GPL.
 #
 #   In accordance with the aggregate clause in GPLv3, every other file of this repository
-#   (https://github.com/jjo93sa/dockerfiles.git) is licensed under MIT, only
+#   (https://github.com/jjo93sa/dockerfiles.git) is licensed under MIT. Only
 #   this file is covered by GPLv3. See the LICENSE file in the repoistory root.
 #
 ARG REPO=jjo93sa/intel
