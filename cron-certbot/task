@@ -38,19 +38,24 @@
 set -euo pipefail
 
 # Exit if no domain or list of domains has been specified:
-: "${CERT_DOMAIN:?Domain must be specified using -e "CERT_DOMAIN=<domain>"}"
+: "${DOMAINS_LISTS:?Domains must be specified: -e "DOMAINS_LISTS=<domain>"}"
 
-# CERT_DOMAIN might be a comma separated list of domains, so we need to process
-# the list. Side-effect is we'll renew domains individually, but as we aren't
-# expecting many in the list, the overhead should be small
-IFS=',' read -ra ADDR <<< "$IN"
-for DOMAIN in "${ADDR[@]}"; do
+# DOMAINS_LIST is a ;-separated list of ,-separated lists of domains
+# Structure of DOMAINS_LISTS is cn1,san1,san2-1,..,sanN;cn2,san2-1,...cnN,sanN-M
+IFS=';' read -ra ARRAY_OF_LISTS <<< "$DOMAINS_LISTS"
 
-    if [ ! -d "/etc/letsencrypt/live/${DOMAIN}" ]; then
-        # Then we already have certs, so renew this domain's certificates
-        certbot certonly --noninteractive -d $DOMAIN
+# Each element of ARRAY_OF_LISTS now contains ,-separated domain lists
+# Structure of an DOMAINS is cn1,san1-1,san1-2,...san1-M
+for DOMAINS in "${ARRAY_OF_LISTS[@]}"; do
+    # The first domain in the comma-separated list is the CN
+    CN=$(echo $DOMAINS | cut -f1 -d,)
+
+    if [ -d "/etc/letsencrypt/live/${CN}" ]; then
+        # Then we already have certs for the CN and SAN(s),
+        # so renew this domain's certificates
+        certbot renew
     else
-        # Then we've not yet run, so get the certificate:
+        # There are no certs for this CN, SAN(s) so get them:
 
         # Check if an email has been supplied, otherwise send the flag
         # --register-unsafely-without-email
@@ -67,9 +72,11 @@ for DOMAIN in "${ADDR[@]}"; do
             STAGING_CMD="--staging"
         fi
 
+        # Recall DOMAINS here is a ,-separated list of domains per the certbot
+        # spec
         certbot certonly --standalone $STAGING_CMD $EMAIL_CMD --agree-tos \
-            --no-eff-email -d $CERT_DOMAIN
+            --no-eff-email -d $DOMAINS
     fi
-    # Loop for other domains
+    # Loop for other domain lists
 done
 
