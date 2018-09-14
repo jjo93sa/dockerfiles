@@ -30,8 +30,9 @@
 #
 # License: MIT, see file in repository root.
 #
-ARG BASE_IMAGE=nginx:alpine
-FROM $BASE_IMAGE
+ARG ARCH=library
+ARG SRCT=alpine
+FROM $ARCH/nginx:$SRCT
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL version "0.1"

@@ -1,0 +1,203 @@
+#!/bin/bash
+set -e
+set -o pipefail
+
+# Get our path & name
+SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+
+R_REG="r.j2o.it"
+
+ERROR_FILE="$(pwd)/build-errors.txt"
+
+function help()
+{
+cat <<End-of-message
+
+build-all - build all Docker images described by Dockerfiles in a directory
+
+Synopsis:
+build-all [-h] -a ARCH1,ARCH2 -b JOBS -d DIR -r REGISTRY -t TAG
+
+build-all -h        Print this help message and exit
+          -a ARCH   Comma-separated list of architectures to build; default:
+                    x86-64. Building for foreign architectures is system
+                    dependent
+          -b JOBS   Jobs count to use if GNU Parallel is installed; default: 2
+          -d DIR    Set the Dockerfile search directory to DIR; default: current
+                    working directory
+          -r REG    Set the upstream registry to REG; default: rw.j2o.it
+          -t TAG    Set the tag to apply to new images; default: latest
+
+End-of-message
+}
+
+function build_push()
+{
+    local REGISTRY=$1
+    local ARCH=$2
+    local IMAGE=$3
+    local TAG=$4
+    local BUILD_DIR=$5
+
+    # Set some defaults for the case we're building standard amd64 images
+    # BUILD_ARG can be empty for amd64 because of Dockerfile defaults
+    # BUILD_STR uses the Docker Hub convention: amd64 has no architecture field
+    BUILD_ARG=""
+    BUILD_STR="$REGISTRY/$IMAGE:$TAG"
+
+    # If we're building for another architecture, change the above strings
+    if [[ ! ${ARCH} =~ library ]]; then
+       BUILD_ARG="--build-arg ARCH=$ARCH"
+       # BUILD_STR munge $ARCH for building a dependent image, see file header
+       BUILD_STR="$REGISTRY/${ARCH##*\/}/$IMAGE:$TAG"
+    fi
+
+    echo "Executing docker build $BUILD_STR arg $BUILD_ARG with context $BUILD_DIR"
+
+    docker build --rm --force-rm ${BUILD_ARG} -t $BUILD_STR $BUILD_DIR || return 1
+
+    echo "                       ---                                   "
+    echo " SUCCESS: built $BUILD_STR"
+    echo "                       ---                                   "
+
+    #Docker push
+    echo "Pushing $BUILD_STR"
+    docker push $BUILD_STR
+}
+
+function process_files()
+{
+    # Parameters
+    # $1 - File path from find
+    # $2 - Registry
+    # $3 - Arch
+    # $4 - Tag
+
+    local FILE_PATH=$1 # With: path/to/wget/Dockerfile
+    local BUILD_DIR=${FILE_PATH%\/Dockerfile} # Gives us: path/to/wget
+    local IMAGE=${BUILD_DIR##*\/} # Gives us: wget
+
+    {
+        # This is where we would build and push
+        # build_push $REPO $IMAGE $TAG $BUILD_DIR
+        $SCRIPT build_push "${2}" "${3}" "${IMAGE}" "$4" "${BUILD_DIR}"
+    } || {
+        echo "FAIL: Building ${IMAGE}:${4} for ${3} FAILED" >> $ERROR_FILE
+    }
+    echo
+    echo
+}
+
+main()
+{
+    # Let's process the command line flags
+    while getopts ":a:b:d:hr:t:" opt; do
+        case $opt in
+            a)
+                # This is the comma-separated list of architectures
+                IMG_ARC="${OPTARG}"
+                ;;
+            b)
+                # This is the number of parallel jobs
+                MAX_JOB="${OPTARG}"
+                ;;
+            d)
+                # This is the docker directory containing all image/Dockerfile
+                DCF_DIR="${OPTARG}"
+                ;;
+            h)
+                # Display help and exit
+                help
+                exit 1
+                ;;
+            r)
+                # This is the registry to use for the push
+                OUR_REG="${OPTARG}"
+                ;;
+            t)
+                # This is the tag to use for the new image
+                OUR_TAG="${OPTARG}"
+                ;;
+            \?)
+                echo "$SCRIPT: invalid option supplied: -$OPTARG"
+                exit 1
+                ;;
+            :)
+                echo "$SCRIPT: -$OPTARG requires an argument"
+                exit 1
+                ;;
+        esac
+    done
+
+    # Use the command line params, or the following defaults:
+    DCF_DIR="${DCF_DIR:-$(pwd)}"
+    IMG_ARC="${IMG_ARC:-library}"
+    OUR_REG="${OUR_REG:-rw.j2o.it}"
+    MAX_JOB="${MAX_JOB:-2}"
+    OUR_TAG="${OUR_TAG:-latest}"
+
+    #DEBUG
+    echo "Called with:"
+    echo "-d $DCF_DIR"
+    echo "-a $IMG_ARC"
+    echo "-r $OUR_REG"
+    echo "-b $MAX_JOB"
+    echo "-t $OUR_TAG"
+    ##
+
+    IFS=$'\n'
+    # Generate a list of Dockerfiles (type 1 and 2)
+    DCF_LIST=( $(find -L ${DCF_DIR} -iname "*Dockerfile" -not -path "*_*" | sort -d) )
+    # Generate a list of Dockerfiles (type 3)
+    DEP_LIST=( $(find -L ${DCF_DIR} -iname "*Dockerfile" -and -path "*_*" | sort -d) )
+    unset IFS
+
+    #DEBUG
+    printf '%s\n' "${DCF_LIST[@]}"
+    echo
+    printf '%s\n' "${DEP_LIST[@]}"
+    ##
+
+    IFS=',' read -ra ARC_LIST <<< "$IMG_ARC"
+
+    for ARCH in "${ARC_LIST[@]}"
+    do
+        # If some variant of i386 has been selected, use library instead
+        if [[ $ARCH =~ [Xx]86-64|[Xx]86_64|[Aa][Mm][Dd]64|[Ii]ntel|[Ii]386 ]]
+        then
+            ARCH="library"
+        fi
+
+        if [ -x "$(command -v parallel)" ]
+        then
+            # This is where we'd call parallel with the array list:
+            parallel --tag --verbose --ungroup -j"${MAX_JOB}" $SCRIPT process_files "{1}" "$OUR_REG" "$ARCH" "$OUR_TAG"::: "${DCF_LIST[@]}"
+            parallel --tag --verbose --ungroup -j"${MAX_JOB}" $SCRIPT process_files "{1}" "$OUR_REG" "r.j2o.it/$ARCH" "$OUR_TAG"::: "${DEP_LIST[@]}"
+        else
+            # Process the type 1 and type 2 Dockerfiles
+            for DCF in "${DCF_LIST[@]}"
+            do
+                $SCRIPT process_files "$DCF" "$OUR_REG" "$ARCH" "$OUR_TAG"
+            done
+
+            # Process the type 3 Dockerfiles
+            for DEP in "${DEP_LIST[@]}"
+            do
+                $SCRIPT process_files "$DEP" "$OUR_REG" "r.j2o.it/$ARCH" "$OUR_TAG"
+            done
+        fi
+    done
+
+    exit 0
+}
+
+if declare -f -- "$1" &> /dev/null
+then
+    # We've been called like this path/script function <params>
+    "$@"
+else
+    # We've been called without a function name, so execute main
+    main "$@"
+fi
+
+

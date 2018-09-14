@@ -49,8 +49,11 @@
 #   (https://github.com/jjo93sa/dockerfiles.git) is licensed under MIT. Only
 #   this file is covered by GPLv3. See the LICENSE file in the repoistory root.
 #
-ARG REPO=jjo93sa/intel
-FROM $REPO/cron-template
+ARG ARCH=r.j2o.it
+ARG SRCT=latest
+FROM $ARCH/cron:$SRCT
+
+ARG CRON_SPEC="29 17 * * 3"
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL version "0.1"

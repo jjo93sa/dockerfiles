@@ -26,7 +26,9 @@
 #
 # License: MIT, see LICENSE file in repoistory root.
 #
-FROM alpine:latest
+ARG ARCH=library
+ARG SCRT=latest
+FROM $ARCH/alpine:$SCRT
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "production"

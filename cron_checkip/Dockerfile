@@ -57,7 +57,8 @@
 #
 # License: MIT, see LICENSE file in repoistory root.
 #
-ARG REPO=jjo93sa/intel
+ARG ARCH=r.j2o.it
+ARG SRCT=latest
 FROM alpine AS intermediate
 
 # Install git in intermediate
@@ -68,8 +69,9 @@ RUN git clone https://github.com/jjo93sa/script-utils.git
 RUN git clone https://github.com/jjo93sa/notification-utils.git
 RUN git clone https://github.com/jjo93sa/ip-utils.git
 
+FROM $ARCH/cron:$SRCT
 
-FROM $REPO/cron-template
+ARG CRON_SPEC="*/5 * * * *"
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL version "1.0"

@@ -51,8 +51,9 @@
 #
 # License: MIT, see file in repository root.
 #
-ARG BASE_IMAGE=alpine
-FROM $BASE_IMAGE
+ARG ARCH=library
+ARG SRCT=latest
+FROM $ARCH/alpine:$SRCT
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL version "1.0"
