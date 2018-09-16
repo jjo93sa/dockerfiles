@@ -171,8 +171,8 @@ main()
         if [ -x "$(command -v parallel)" ]
         then
             # This is where we'd call parallel with the array list:
-            parallel --tag --verbose --ungroup -j"${MAX_JOB}" $SCRIPT process_files "{1}" "$OUR_REG" "$ARCH" "$OUR_TAG"::: "${DCF_LIST[@]}"
-            parallel --tag --verbose --ungroup -j"${MAX_JOB}" $SCRIPT process_files "{1}" "$OUR_REG" "r.j2o.it/$ARCH" "$OUR_TAG"::: "${DEP_LIST[@]}"
+            parallel --tag --verbose --ungroup -j"${MAX_JOB}" $SCRIPT process_files "{1}" "$OUR_REG" "$ARCH" "$OUR_TAG" ::: "${DCF_LIST[@]}"
+            parallel --tag --verbose --ungroup -j"${MAX_JOB}" $SCRIPT process_files "{1}" "$OUR_REG" "r.j2o.it/$ARCH" "$OUR_TAG" ::: "${DEP_LIST[@]}"
         else
             # Process the type 1 and type 2 Dockerfiles
             for DCF in "${DCF_LIST[@]}"
