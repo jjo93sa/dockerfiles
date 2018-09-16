@@ -1,11 +1,69 @@
 #!/bin/bash
+#
+# Title:  build-all
+#
+# Description:
+#   Script to create an image for each Dockerfile found in a directory. Will
+#   build Docker images for multiple architectures (configuration-dependent).
+#   Uses GNU parallel (https://www.gnu.org/software/parallel/) in an attempt
+#   to speed-up the image creation & push to a registry. See the help text by
+#   running ./build-all -h.
+#
+#   We define three types of Dockerfile to build:
+#     Type 1 - Sandard Docker images, which may be used standalone or as the
+#              basis for another image.
+#     Type 2 - Base images, which are those that may not be used standalone,
+#              but are intended to be used as the base of another Docker image
+#     Type 3 - These are images derived from a Type 1 or Type 2 image, which
+#              implies that the parent images must be built before the Type 3
+#              files.
+#
+#   We ensure that the Type 1 and 2 images are built first. Determination of
+#   image type is performed by examining the name of the directory containing
+#   the Dockerfile. Any directory name including an underscore (_) is deemed to
+#   be a Type 3 image. For example, cron_certbot is a container derived from
+#   Type 2 image cron.
+#
+# Dependencies:
+#   (1) Assumes that the Dockerfiles are contained in a structure like this:
+#       ./project-name/Dockerfile
+#   (2) Assumes any Dockerfile-containing directory with _ in the name must be
+#       built at the end of the queue (to ensure any base components are built)
+#
+# Credits:
+#   Heavily based on the build-all script of jessfraz, see:
+#   https://github.com/jessfraz/dockerfiles/blob/master/build-all.sh
+#
+# Usage:
+#   Usage of this file is very simple:
+#
+#   (0) Login to your Docker registry (the one specified woth the -r switch);
+#   (1) Place this script in the root of your Dockerfile project;
+#   (2) Edit the parameter R_REG for a read-only registry
+#   (2) Execute the script ./build-all with the appropriate options, which are
+#       summarized as:
+#       build-all -h        Print help and exit
+#           -a ARCH   Comma-separated list of architectures to build; default:
+#                     x86-64. Building for foreign architectures is system
+#                     dependent
+#           -b JOBS   Jobs count to use if GNU Parallel is installed; default: 2
+#           -d DIR    Set the Dockerfile search directory to DIR; default: current
+#                     working directory
+#           -r REG    Set the upstream registry to REG; default: rw.j2o.it
+#           -t TAG    Set the tag to apply to new images; default: latest
+#   (3) Check the buiild-errors.txt file for any problems during the build
+#
+# Maintainer:
+#   dr.j.osborne@gmail.com
+#
+# License:
+#   MIT, see file in repository root.
+#
 set -e
 set -o pipefail
 
 # Get our path & name
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-
-R_REG="r.j2o.it"
 
 ERROR_FILE="$(pwd)/build-errors.txt"
 
@@ -136,27 +194,12 @@ main()
     MAX_JOB="${MAX_JOB:-2}"
     OUR_TAG="${OUR_TAG:-latest}"
 
-    #DEBUG
-    echo "Called with:"
-    echo "-d $DCF_DIR"
-    echo "-a $IMG_ARC"
-    echo "-r $OUR_REG"
-    echo "-b $MAX_JOB"
-    echo "-t $OUR_TAG"
-    ##
-
     IFS=$'\n'
     # Generate a list of Dockerfiles (type 1 and 2)
     DCF_LIST=( $(find -L ${DCF_DIR} -iname "*Dockerfile" -not -path "*_*" | sort -d) )
     # Generate a list of Dockerfiles (type 3)
     DEP_LIST=( $(find -L ${DCF_DIR} -iname "*Dockerfile" -and -path "*_*" | sort -d) )
     unset IFS
-
-    #DEBUG
-    printf '%s\n' "${DCF_LIST[@]}"
-    echo
-    printf '%s\n' "${DEP_LIST[@]}"
-    ##
 
     IFS=',' read -ra ARC_LIST <<< "$IMG_ARC"
 
@@ -170,20 +213,23 @@ main()
 
         if [ -x "$(command -v parallel)" ]
         then
-            # This is where we'd call parallel with the array list:
+            # This is where we call parallel with the array list:
             parallel --tag --verbose --ungroup -j"${MAX_JOB}" $SCRIPT process_files "{1}" "$OUR_REG" "$ARCH" "$OUR_TAG" ::: "${DCF_LIST[@]}"
-            parallel --tag --verbose --ungroup -j"${MAX_JOB}" $SCRIPT process_files "{1}" "$OUR_REG" "r.j2o.it/$ARCH" "$OUR_TAG" ::: "${DEP_LIST[@]}"
+            parallel --tag --verbose --ungroup -j"${MAX_JOB}" $SCRIPT process_files "{1}" "$OUR_REG" "$OUR_REG/$ARCH" "$OUR_TAG" ::: "${DEP_LIST[@]}"
         else
-            # Process the type 1 and type 2 Dockerfiles
+            # Parallel isn't installed, so let's perform the build(s) serially
+            # Process the type 1 and type 2 Dockerfiles, that is those that can
+            # be built without dependencies on others
             for DCF in "${DCF_LIST[@]}"
             do
                 $SCRIPT process_files "$DCF" "$OUR_REG" "$ARCH" "$OUR_TAG"
             done
 
-            # Process the type 3 Dockerfiles
+            # Process the type 3 Dockerfiles, that is those Dockerfiles that
+            # depend on type 1 or type 2 Dockerfiles
             for DEP in "${DEP_LIST[@]}"
             do
-                $SCRIPT process_files "$DEP" "$OUR_REG" "r.j2o.it/$ARCH" "$OUR_TAG"
+                $SCRIPT process_files "$DEP" "$OUR_REG" "$OUR_REG/$ARCH" "$OUR_TAG"
             done
         fi
     done
@@ -193,7 +239,7 @@ main()
 
 if declare -f -- "$1" &> /dev/null
 then
-    # We've been called like this path/script function <params>
+    # We've been called like this: path/script function <params>
     "$@"
 else
     # We've been called without a function name, so execute main
