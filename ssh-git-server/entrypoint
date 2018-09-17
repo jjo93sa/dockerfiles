@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [[ $# > 0 ]]
+then
+    for arg in "$@"
+    do
+        echo "$arg" >> /home/git/.ssh/authorized_keys
+    done
+fi
+
+exec /usr/sbin/sshd -D
+

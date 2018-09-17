@@ -46,7 +46,7 @@
 #MaxAuthTries 6
 #MaxSessions 10
 
-RSAAuthentication yes
+#RSAAuthentication yes
 PubkeyAuthentication yes
 
 # The default is to check both .ssh/authorized_keys and .ssh/authorized_keys2

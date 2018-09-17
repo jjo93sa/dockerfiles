@@ -1,0 +1,19 @@
+#!/bin/bash
+
+echo "ssh-git-server running in Docker says the following repos are known:"
+echo
+
+
+REPO_LIST=( $(find ~/repos -type d -name "*.git" | sort) )
+
+for REPO_ENTRY in "${REPO_LIST[@]}"
+do
+   if [ $(git --git-dir="$REPO_ENTRY" rev-parse --is-bare-repository)  ]
+   then
+      echo "- ${REPO_ENTRY##*\/}"
+   fi
+done
+
+echo
+
+exit 0

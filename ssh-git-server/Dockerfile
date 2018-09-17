@@ -16,6 +16,10 @@ RUN ssh-keygen -A
 # Add a custom sshd_config file
 COPY sshd_config /etc/ssh/sshd_config
 
+# Add our entrypoint
+COPY entrypoint /usr/local/bin
+RUN chmod 755 /usr/local/bin/entrypoint
+
 # Add a user called git, set shell and activate (with no password?)
 # git shell is installed as part of git, it restricts shell access to git cmds
 # See: https://git-scm.com/docs/git-shell
@@ -46,5 +50,6 @@ RUN mkdir repos &&            \
 EXPOSE 22
 
 # Run the ssh server (as root?); -D ensures server doesn't run as a daemon
-ENTRYPOINT [ "/usr/sbin/sshd" ]
-CMD [ "-D" ]
+ENTRYPOINT [ "/usr/local/bin/entrypoint" ]
+#ENTRYPOINT [ "/usr/sbin/sshd" ]
+#CMD [ "-D" ]

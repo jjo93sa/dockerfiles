@@ -1,5 +1,19 @@
-#!/bin/sh
-printf '%s\n' "Welcome to git-server-docker!"
-printf '%s\n' "You've successfully authenticated, but I do not"
-printf '%s\n' "provide interactive shell access."
+!/bin/bash
+
+cat <<End-of-message
+
+Welcome to ssh-git-server running in Docker.
+
+If you are reading this, you have successfully authenticated using a pubkey.
+You may use the following commands:
+
+End-of-message
+
+CMD_LIST=( $(find git-shell-commands -type f -perm +111 | sort) )
+
+for CMD_ENTRY in "${CMD_LIST[@]}"
+do
+   [[ ! ${CMD_ENTRY} =~ no-interactive-login ]] && echo "- ${CMD_ENTRY##*\/}"
+done
+
 exit 128
