@@ -1,4 +1,4 @@
-!/bin/bash
+#!/bin/bash
 
 cat <<End-of-message
 
@@ -9,11 +9,13 @@ You may use the following commands:
 
 End-of-message
 
-CMD_LIST=( $(find git-shell-commands -type f -perm +111 | sort) )
+CMD_LIST=( $(find ~/git-shell-commands -type f -perm +111 | sort) )
 
 for CMD_ENTRY in "${CMD_LIST[@]}"
 do
    [[ ! ${CMD_ENTRY} =~ no-interactive-login ]] && echo "- ${CMD_ENTRY##*\/}"
 done
+
+echo
 
 exit 128
