@@ -5,7 +5,10 @@
 # Description:
 #   Script to create an image for each Dockerfile found in a directory. Will
 #   build Docker images for multiple architectures (configuration-dependent).
-#   Uses GNU parallel (https://www.gnu.org/software/parallel/) in an attempt
+#   Docker for Mac will quite happily build arm32v6 (and I believe other)
+#   images, which are useful for Raspberry Pi deployment.
+#
+#   Attempts to use GNU parallel (https://www.gnu.org/software/parallel/)
 #   to speed-up the image creation & push to a registry. See the help text by
 #   running ./build-all -h.
 #
@@ -21,8 +24,8 @@
 #   We ensure that the Type 1 and 2 images are built first. Determination of
 #   image type is performed by examining the name of the directory containing
 #   the Dockerfile. Any directory name including an underscore (_) is deemed to
-#   be a Type 3 image. For example, cron_certbot is a container derived from
-#   Type 2 image cron.
+#   be a Type 3 image. For example, cron_certbot is a Type 3 image derived from
+#   the Type 2 image cron.
 #
 # Dependencies:
 #   (1) Assumes that the Dockerfiles are contained in a structure like this:
@@ -37,9 +40,8 @@
 # Usage:
 #   Usage of this file is very simple:
 #
-#   (0) Login to your Docker registry (the one specified woth the -r switch);
+#   (0) Login to your Docker registry (the one specified with the -r switch);
 #   (1) Place this script in the root of your Dockerfile project;
-#   (2) Edit the parameter R_REG for a read-only registry
 #   (2) Execute the script ./build-all with the appropriate options, which are
 #       summarized as:
 #       build-all -h        Print help and exit
@@ -51,7 +53,7 @@
 #                     working directory
 #           -r REG    Set the upstream registry to REG; default: rw.j2o.it
 #           -t TAG    Set the tag to apply to new images; default: latest
-#   (3) Check the buiild-errors.txt file for any problems during the build
+#   (3) Check the build-errors.txt file for any problems during the build.
 #
 # Maintainer:
 #   dr.j.osborne@gmail.com
@@ -59,7 +61,7 @@
 # License:
 #   MIT, see file in repository root.
 #
-set -e
+set -eu
 set -o pipefail
 
 # Get our path & name
@@ -105,9 +107,14 @@ function build_push()
 
     # If we're building for another architecture, change the above strings
     if [[ ! ${ARCH} =~ library ]]; then
-       BUILD_ARG="--build-arg ARCH=$ARCH"
-       # BUILD_STR munge $ARCH for building a dependent image, see file header
-       BUILD_STR="$REGISTRY/${ARCH##*\/}/$IMAGE:$TAG"
+        # Our Dockerfiles can have the Architecture overridden at build time
+        # For Type 3 files this will be something like rw.j2o.it/arm32v6 to
+        # ensure that the build pulls the correct image from the registry
+        # For Types 1 & 2, this will be something like arm32v6
+        BUILD_ARG="--build-arg ARCH=$ARCH"
+        # BUILD_STR munge $ARCH for building a dependent image, see file header
+        # NB for Type 3 here we must strip the registry from the front of ARCH
+        BUILD_STR="$REGISTRY/${ARCH##*\/}/$IMAGE:$TAG"
     fi
 
     echo "Executing docker build $BUILD_STR arg $BUILD_ARG with context $BUILD_DIR"
@@ -131,16 +138,27 @@ function process_files()
     # $3 - Arch
     # $4 - Tag
 
-    local FILE_PATH=$1 # With: path/to/wget/Dockerfile
-    local BUILD_DIR=${FILE_PATH%\/Dockerfile} # Gives us: path/to/wget
+    # $1 has format: path/to/wget/Dockerfile
+    local BUILD_DIR=${1%\/Dockerfile} # Gives us: path/to/wget
     local IMAGE=${BUILD_DIR##*\/} # Gives us: wget
+    local ARCH=$3
+
+    # If some variant of i386 has been selected for ARCH, use library instead
+    # (This emulates the functionality of DockerHub)
+    if [[ $ARCH =~ [Xx]86-64|[Xx]86_64|[Aa][Mm][Dd]64|[Ii]ntel|[Ii]386 ]]
+    then
+        ARCH="library"
+    fi
 
     {
-        # This is where we would build and push
+        echo "                       ---                                   "
+        echo " Starting build for: $ARCH/$IMAGE"
+        echo "                       ---                                   "
+
         # build_push $REPO $IMAGE $TAG $BUILD_DIR
-        $SCRIPT build_push "${2}" "${3}" "${IMAGE}" "$4" "${BUILD_DIR}"
+        $SCRIPT build_push "${2}" "${ARCH}" "${IMAGE}" "$4" "${BUILD_DIR}"
     } || {
-        echo "FAIL: Building ${IMAGE}:${4} for ${3} FAILED" >> $ERROR_FILE
+        echo "FAIL: Building ${IMAGE}:${4} for ${ARCH} FAILED" | tee -a $ERROR_FILE
     }
     echo
     echo
@@ -203,20 +221,18 @@ main()
 
     IFS=',' read -ra ARC_LIST <<< "$IMG_ARC"
 
-    for ARCH in "${ARC_LIST[@]}"
-    do
-        # If some variant of i386 has been selected, use library instead
-        if [[ $ARCH =~ [Xx]86-64|[Xx]86_64|[Aa][Mm][Dd]64|[Ii]ntel|[Ii]386 ]]
-        then
-            ARCH="library"
-        fi
-
-        if [ -x "$(command -v parallel)" ]
-        then
-            # This is where we call parallel with the array list:
-            parallel --tag --verbose --ungroup -j"${MAX_JOB}" $SCRIPT process_files "{1}" "$OUR_REG" "$ARCH" "$OUR_TAG" ::: "${DCF_LIST[@]}"
-            parallel --tag --verbose --ungroup -j"${MAX_JOB}" $SCRIPT process_files "{1}" "$OUR_REG" "$OUR_REG/$ARCH" "$OUR_TAG" ::: "${DEP_LIST[@]}"
-        else
+    if [ -x "$(command -v parallel)" ]
+    then
+        # This is where we call parallel with the array list:
+        # Type 1 & 2:
+        parallel --verbose -u -j"${MAX_JOB}" $SCRIPT process_files "{1}" \
+            "$OUR_REG" "{2}" "$OUR_TAG" ::: "${DCF_LIST[@]}" ::: "${ARC_LIST[@]}"
+        # Type 3:
+        parallel --verbose -u -j"${MAX_JOB}" $SCRIPT process_files "{1}" \
+            "$OUR_REG" "$OUR_REG/{2}" "$OUR_TAG" ::: "${DEP_LIST[@]}" ::: "${ARC_LIST[@]}"
+    else
+        for ARCH in "${ARC_LIST[@]}"
+        do
             # Parallel isn't installed, so let's perform the build(s) serially
             # Process the type 1 and type 2 Dockerfiles, that is those that can
             # be built without dependencies on others
@@ -231,8 +247,8 @@ main()
             do
                 $SCRIPT process_files "$DEP" "$OUR_REG" "$OUR_REG/$ARCH" "$OUR_TAG"
             done
-        fi
-    done
+        done
+    fi
 
     exit 0
 }
