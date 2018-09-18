@@ -1,4 +1,24 @@
 #!/bin/bash
+#
+# Title:  ssh-git-server/entrypoint
+#
+# Description:
+#   Hacky entrypoint script for the ssh-git-server Docker image. If the
+#   container is started with non-zero parameters, assume that they form
+#   a public key & echo them to the .ssh/authorized keys file. There must be a
+#   better way of processing this, but since public keys contain spaces,
+#   preventing word splitting is tricky.
+#
+# Dependencies:  None
+#
+# Credits:  None
+#
+# Usage:  Called from the Docker image
+#
+# Maintainer: dr.j.osborne@gmail.com
+#
+# License: MIT, see LICENSE file in repoistory root.
+#
 
 if [[ $# > 0 ]]
 then
