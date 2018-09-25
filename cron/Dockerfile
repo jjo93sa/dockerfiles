@@ -1,29 +1,38 @@
 #
-# Title:  cron-template/Dockerfile
+# Title:  cron/Dockerfile
 #
 # Description:
-#   Template to execute bash script, named "task", regularly with cron. This
-#   image is designed to be used as the basis of another, concrete image and
-#   won't execute on its own.
+#   Template image definition that uses cron to execute a bash script, named
+#   "task". This image is designed to be used as the basis of another,
+#   concrete, image and won't execute on its own.
 #
-#   Cron frequency defaults to every minute (* * * * * task) but may be
-#   overridden at image build time using --build-arg CRON_SPEC="<string>". For
-#   example:
+#   The cron specification is incomplete, leaving it up to the dependent image
+#   to define the cron frequency of script execution. Users of this template
+#   have two methods for applying a cron specification:
 #
-#   docker build --build-arg CRON_SPEC="*/2 * * * *" <rest of build command>
+#	  (1) Define a CRON_SPEC ARG _before_ the _first_ FROM in your docker
+#	      file, which causes it to be a global ARG, and the ONBUILD
+#	      instructions in this image will adopt the value so specified:
 #
-#   will build an image executing task every two minutes.
+#		    ARG CRON_SPEC="* * * * *"
+#		    FROM j.j2o.it/cron
+#
+#     (2) Define the CRON_SPEC as a build argument in the docker build
+#         command, for example:
+#
+#           docker build --build-arg CRON_SPEC="*/2 * * * *"
 #
 #   ONBUILD is used in this Dockerfile to trigger instructions in images using
 #   this as a base image. One of the ONBUILD instructions assumes that a script
 #   named "task" is present in the build context. The build of your image may
 #   fail if "task" doesn't exist. And, certainly, nothing will happen when that
-#   container is run. Your image can include any other files needed for your
-#   purpose, for example other scripts needed by "task".
+#   container is executed. Your image can include any other files needed for
+#   your purpose, for example other scripts needed by "task".
 #
 #   Overall, your "concrete" image file might be as simple as:
 #
-#     FROM jjo93sa/cron-template
+#     ARG CRON_SPEC=<your spec>
+#     FROM r.j2o.it/cron
 #
 #     # Copy anything else needed in your image:
 #     # Funky script myawesomescript is called from task.
@@ -31,7 +40,8 @@
 #     # located.
 #     COPY ./myawesomescript /usr/local/bin
 #
-#   And that's it - no ENTRYPOINT/CMD, nothing about task.sh or crontab stuff.
+#   And that's it -- no ENTRYPOINT/CMD, nothing about task and no other crontab
+#   stuff.
 #
 # Credits:
 #	 Based on https://gist.github.com/andyshinn/3ae01fa13cb64c9d36e7 and
@@ -39,17 +49,23 @@
 #	 See also https://www.ekito.fr/people/run-a-cron-job-with-docker/
 #
 # Usage:
-#   Usage is as simple as these four steps:
-#   (1) Build an image from this Dockerfile with the CRON_SPEC of your choice;
-#   (2) Create a task script executing your desired function;`
-#   (3) Create a Dockerfile for your concrete image, copying any other binaries
-#       or scripts you need for it to work;
-#   (4) Build your image;
-#   (5) Execute your concrete image.
+#   Usage is as simple as downloading the latest image of this Docker file from
+#   r.j2o.it/cron, and then using that image in the "FROM" of your own
+#   Dockerfile. If you want to build your own image of this file, there are four
+#   steps:
 #
-# Maintainer: dr.j.osborne@gmail.com
+#     (1) Build an image from this Dockerfile
+#     (2) Create a task script executing your desired function(s)
+#     (3) Create a Dockerfile for your concrete image, copying any other binaries
+#         or scripts you need for it to work
+#     (4) Build your image
+#     (5) Execute your concrete image
 #
-# License: MIT, see file in repository root.
+# Maintainer:
+#   James Osborne, dr.j.osborne@gmail.com
+#
+# License:
+#   MIT, see file in repository root.
 #
 ARG ARCH=library
 ARG SRCT=latest
@@ -62,11 +78,14 @@ LABEL status "production"
 # Install bash
 RUN apk --no-cache add bash
 
-# Default, every minute, cron entry. Can be changed during container build.
-ONBUILD ARG CRON_SPEC="* * * * *"
+# We declare CRON_SPEC here so that it might be changed by Dockerfiles
+# implementing this image, wherein these "derived" images either need to
+# specify CRON_SPEC before the first FROM in the Dockerfile, or pass it as an
+# --build-arg parameter on the docker build command line.
+ONBUILD ARG CRON_SPEC
 
-# Edit the root crontab, executing script task.sh as requested at build time
-# (through build-arg), default to running once per minute per ARG above
+# Edit the root crontab, executing script task as requested at build time
+# (through build-arg or global ARG definition before first FROM)
 ONBUILD RUN sed -i -e "\$aSHELL=/bin/bash" \
                    -e "\$a${CRON_SPEC}    /usr/local/bin/task\n" \
 		   /etc/crontabs/root
