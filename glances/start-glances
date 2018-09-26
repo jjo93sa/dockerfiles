@@ -1,7 +1,29 @@
 #!/bin/sh
+#
+# Title:  glances/start-glances
+#
+# Description:
+#   This script changes the glances.conf file in the image and starts the
+#   glances process when the Docker container starts-up.
+#
+# Dependencies:
+#   Expects some environment variables to be set (see glances.env) but
+#   configures defaults if any are missing.
+#
+# Credits:  None
+#
+# Usage:
+#   Not intended to be used standalone. Called by ENTRYPOINT in the Docker file
+#
+# Maintainer:
+#   James Osborne, dr.j.osborne@gmail.com
+#
+# License:
+#   MIT, see LICENSE file in repoistory root.
+#
 
-# Define some defaults if no environment variables set on command line
-INFLUX_HOST="${INFLUX_HOST:-10.25.10.100}"
+# Define some defaults if no environment variables set
+INFLUX_HOST="${INFLUX_HOST:-10.10.20.10}"
 INFLUX_PORT="${INFLUX_PORT:-8086}"
 INFLUX_USER="${INFLUX_USER:-influx}"
 INFLUX_PASS="${INFLUX_PASS:-password}"
@@ -11,13 +33,13 @@ INFLUX_TAGS="${INFLUX_TAGS:-'server:docker_def,owner:docker'}"
 INFLUX_TIME="${INFLUX_TIME:-30}"
 
 # Make the requisite changes to the configuration file
-sed -i "s/^port=.*/port=$INFLUX_PORT/g" /etc/glances/glances.conf
-sed -i "s/^user=.*/user=$INFLUX_USER/g" /etc/glances/glances.conf
-sed -i "s/^password=.*/password=$INFLUX_PASS/g" /etc/glances/glances.conf
-sed -i "s/^host=.*/host=$INFLUX_HOST/g" /etc/glances/glances.conf
-sed -i "s/^db=.*/db=$INFLUX_DBID/g" /etc/glances/glances.conf
-sed -i "s/^prefix=.*/#prefix=$INFLUX_PREF/g" /etc/glances/glances.conf
-sed -i "s/^#tags=.*/tags=$INFLUX_TAGS/g" /etc/glances/glances.conf
+sed -i -e "s/^port=.*/port=$INFLUX_PORT/g"  \
+       -e "s/^user=.*/user=$INFLUX_USER/g" \
+       -e "s/^password=.*/password=$INFLUX_PASS/g" \
+       -e "s/^host=.*/host=$INFLUX_HOST/g" \
+       -e "s/^db=.*/db=$INFLUX_DBID/g" \
+       -e "s/^prefix=.*/#prefix=$INFLUX_PREF/g" \
+       -e "s/^#tags=.*/tags=$INFLUX_TAGS/g" /etc/glances/glances.conf
 
 # Execute the glances module, specifying the refresh time
 # Refresh time can be overwritten with --time in docker run statement
