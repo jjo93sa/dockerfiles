@@ -105,6 +105,12 @@ COPY start-glances /usr/local/bin
 # Give the entry script executable perms
 RUN chmod 755 /usr/local/bin/start-glances
 
+RUN addgroup -g 1729 glances && adduser -S -u 1729 -G glances glances
+
+RUN chown -R glances:glances /etc/glances
+
+USER glances
+
 # Define default command.
 ENTRYPOINT [ "/usr/local/bin/start-glances", "-C", "/etc/glances/glances.conf" ]
 

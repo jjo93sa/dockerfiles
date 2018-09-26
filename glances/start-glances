@@ -43,4 +43,4 @@ sed -i -e "s/^port=.*/port=$INFLUX_PORT/g"  \
 
 # Execute the glances module, specifying the refresh time
 # Refresh time can be overwritten with --time in docker run statement
-/usr/bin/python -m glances --time ${INFLUX_TIME} "$@"
+exec /usr/bin/python -m glances --time ${INFLUX_TIME} "$@"
