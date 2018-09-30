@@ -1,14 +1,49 @@
 #!/bin/sh
+#
+# Title:  git-shell-commands/mkrepo
+#
+# Description:
+#   Script to create an initialize a new bare git repository.
+#
+# Dependencies:
+#   None
+#
+# Credits:
+#   None
+#
+# Usage:
+#   Used as part of git-shell-commands under git shell.
+#
+# Maintainer:
+#   James Osborne, dr.j.osborne@gmail.com
+#
+# License:
+#   MIT, see LICENSE file in repoistory root.
+#
+
+# Initialize a new bare git repository using the name supplied on the cli
 git init --bare --shared repos/$1.git
 
+# Clone the repository so we can add some file
 git clone repos/$1.git $1
+
+# Add a README.md file (this circumvents some git errors about emptty repo)
 cp README.md $1/
 cd $1
+
+# Do some git config, again to eliminate errors
 git config user.email "you@example.com"
 git config user.name "Your Name"
 git add README.md
+
+# Commit the changes
 git commit -m "creation"
 
+# Push the changes to the bare repository
 git push origin master
 cd -
+
+# Remove the temporary directory
 rm -rf $1
+
+exit $?

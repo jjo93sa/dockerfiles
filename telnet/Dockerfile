@@ -7,9 +7,11 @@
 #   Use Alpine linux to keep the container size small, but the telnet client is
 #   barebones.
 #
-# Dependencies: None
+# Dependencies:
+#   None
 #
-# Credits: None
+# Credits:
+#   None
 #
 # Usage:
 #   To use the Docker container:
@@ -18,6 +20,9 @@
 #       the Dockerfile:
 #
 #         docker build -it <repo>/telnet .
+#
+#       Alternatively, download a pre-built image from r.j2o.it. Check this
+#       site for supported images/architectures: https://r.j2o.it
 #
 #   (2) Run the Docker container:
 #
@@ -30,9 +35,11 @@
 #         docker run --rm --name telnet -it <repo>/telnet \
 #           towel.blinkenlights.nl 23
 #
-# Maintainer: dr.j.osborne@gmail.com
+# Maintainer:
+#   James Osborne, dr.j.osborne@gmail.com
 #
-# License: MIT, see LICENSE file in repoistory root.
+# License:
+#   MIT, see LICENSE file in repoistory root.
 #
 ARG ARCH=library
 ARG SCRT=latest

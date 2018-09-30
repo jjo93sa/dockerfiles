@@ -7,7 +7,8 @@
 #   are commands that may be executed on the server for common Git and ssh
 #   operations, like adding public keys, creating repositories.
 #
-# Dependencies:  None
+# Dependencies:
+#   None
 #
 # Credits:
 #   Inspiration for the git-shell-commands from the official Git repository:
@@ -28,15 +29,18 @@
 #   (b) Run time - after building the default image from this Docker file, it
 #       is possible to specify a single public key as the only argument to the
 #       Docker run command:
+#
 #          docker run -p 22122:22 -it r.j2o.it/ssh-git-server "<pub-key>"
 #
 #   Either way, additional public keys may be added using the addkey command:
+#
 #          ssh -p 22122 git@ssh-git-server addkey "<pub-key>"
 #
 #   Building this Dockerfile is standard. Or simply docker pull it from:
-#   r.j2o.it/ssh-git-server
+#   r.j2o.it.
 #
 #   Currently, the following commands are supported from ssh:
+#
 #       - addkey -- adds a new public key to authorized_keys
 #       - lsrepo -- lists all known repositories
 #       - mkrepo -- makes a new repository
@@ -44,11 +48,14 @@
 #   All git repositories are stored in /home/git/repos. You can mount this
 #   directory on the host to ensure the repositories are retained across
 #   restarts:
-#          docker run -p 22:22 -v /host/path:/home/git/repos ...
 #
-# Maintainer: dr.j.osborne@gmail.com
+#       docker run -p 22:22 -v /host/path:/home/git/repos ...
 #
-# License: MIT, see LICENSE file in repoistory root.
+# Maintainer:
+#   James Osborne, dr.j.osborne@gmail.com
+#
+# License:
+#   MIT, see LICENSE file in repoistory root.
 #
 ARG ARCH=library
 ARG SRCT=latest
@@ -58,10 +65,9 @@ LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL version "0.2"
 LABEL status "test"
 
-RUN apk update && apk add --no-cache \
-	bash \
-	git \
-	openssh
+RUN apk add --no-cache bash \
+                       git \
+                       openssh
 
 # Generate keys for the ssh server
 RUN ssh-keygen -A
@@ -76,16 +82,16 @@ RUN chmod 755 /usr/local/bin/entrypoint
 # Add a user called git, set shell and activate (with no password?)
 # git shell is installed as part of git, it restricts shell access to git cmds
 # See: https://git-scm.com/docs/git-shell
-RUN adduser -D -s /usr/bin/git-shell git \
-	&& passwd -u git
+RUN adduser -D -s /usr/bin/git-shell git && \
+    passwd -u git
 
 # Set the working directory, we'll mount this in a data container
 WORKDIR /home/git
 
 # Create the files and directories needed for user git's ssh
-RUN  mkdir .ssh                   \
-	&& chown -R git:git .ssh      \
-	&& chmod 700 .ssh
+RUN  mkdir .ssh              && \
+     chown -R git:git .ssh   && \
+     chmod 700 .ssh
 
 # Copy the authorized_keys file and ensure permissions and ownership are good
 COPY authorized_keys .ssh/
@@ -99,8 +105,8 @@ COPY README.md /home/git/
 
 # Create a directory for our repos
 RUN mkdir repos &&            \
-	chown -R git:git repos && \
-	chmod -R ug+rwX repos
+    chown -R git:git repos && \
+    chmod -R ug+rwX repos
 
 EXPOSE 22
 

@@ -10,12 +10,12 @@
 #   to define the cron frequency of script execution. Users of this template
 #   have two methods for applying a cron specification:
 #
-#	  (1) Define a CRON_SPEC ARG _before_ the _first_ FROM in your docker
-#	      file, which causes it to be a global ARG, and the ONBUILD
-#	      instructions in this image will adopt the value so specified:
+#     (1) Define a CRON_SPEC ARG _before_ the _first_ FROM in your docker
+#         file, which causes it to be a global ARG, and the ONBUILD
+#         instructions in this image will adopt the value so specified:
 #
-#		    ARG CRON_SPEC="* * * * *"
-#		    FROM j.j2o.it/cron
+#           ARG CRON_SPEC="* * * * *"
+#           FROM r.j2o.it/cron
 #
 #     (2) Define the CRON_SPEC as a build argument in the docker build
 #         command, for example:
@@ -40,13 +40,13 @@
 #     # located.
 #     COPY ./myawesomescript /usr/local/bin
 #
-#   And that's it -- no ENTRYPOINT/CMD, nothing about task and no other crontab
+#   And that's it! -- no ENTRYPOINT/CMD, nothing about task and no other crontab
 #   stuff.
 #
 # Credits:
-#	 Based on https://gist.github.com/andyshinn/3ae01fa13cb64c9d36e7 and
-#	 https://forums.docker.com/t/how-to-run-a-cron-job-inside-a-container-alpine/7759/8
-#	 See also https://www.ekito.fr/people/run-a-cron-job-with-docker/
+#   Based on https://gist.github.com/andyshinn/3ae01fa13cb64c9d36e7 and
+#   https://forums.docker.com/t/how-to-run-a-cron-job-inside-a-container-alpine/7759/8
+#   See also https://www.ekito.fr/people/run-a-cron-job-with-docker/
 #
 # Usage:
 #   Usage is as simple as downloading the latest image of this Docker file from
@@ -88,7 +88,7 @@ ONBUILD ARG CRON_SPEC
 # (through build-arg or global ARG definition before first FROM)
 ONBUILD RUN sed -i -e "\$aSHELL=/bin/bash" \
                    -e "\$a${CRON_SPEC}    /usr/local/bin/task\n" \
-		   /etc/crontabs/root
+                   /etc/crontabs/root
 
 # Set our working directory using ONBUILD to ensure this is done in image
 # based off this

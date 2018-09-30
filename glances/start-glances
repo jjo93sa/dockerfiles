@@ -10,7 +10,8 @@
 #   Expects some environment variables to be set (see glances.env) but
 #   configures defaults if any are missing.
 #
-# Credits:  None
+# Credits:
+#   None
 #
 # Usage:
 #   Not intended to be used standalone. Called by ENTRYPOINT in the Docker file

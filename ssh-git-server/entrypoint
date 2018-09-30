@@ -9,15 +9,20 @@
 #   better way of processing this, but since public keys contain spaces,
 #   preventing word splitting is tricky.
 #
-# Dependencies:  None
+# Dependencies:
+#   None
 #
-# Credits:  None
+# Credits:
+#   None
 #
-# Usage:  Called from the Docker image
+# Usage:
+#   Called from the Docker image
 #
-# Maintainer: dr.j.osborne@gmail.com
+# Maintainer:
+#   James Osborne, dr.j.osborne@gmail.com
 #
-# License: MIT, see LICENSE file in repoistory root.
+# License:
+#   MIT, see LICENSE file in repoistory root.
 #
 
 if [[ $# > 0 ]]

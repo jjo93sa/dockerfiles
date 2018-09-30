@@ -4,9 +4,11 @@
 #   Definition for Docker container to run wget, which is useful for macOS,
 #   which doesn't have wget.
 #
-# Dependencies: None
+# Dependencies:
+#   None
 #
-# Credits: None
+# Credits:
+#   None
 #
 # Usage:
 #   To use the Docker container:
@@ -15,6 +17,9 @@
 #
 #       docker build -t <repo>/wget .
 #
+#       Alternatively, download a prebuilt image from r.j2o.it. Check this site
+#       for listing of images/architectures supported: https://r.j2o.it
+#
 #   (2) Run the container:
 #
 #       docker run -it -v `pwd`:/output --rm --name wget <repo>/wget <params>
@@ -22,9 +27,11 @@
 #       If the container is run without any parameters, it defaults to showing
 #       the wget help (wget -h).
 #
-# Maintainer: dr.j.osborne@gmail.com
+# Maintainer:
+#   James Osborne, dr.j.osborne@gmail.com
 #
-# License: MIT, see LICENSE file in repoistory root.
+# License:
+#   MIT, see LICENSE file in repoistory root.
 #
 ARG ARCH=library
 ARG SCRT=latest

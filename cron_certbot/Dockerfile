@@ -71,11 +71,11 @@ RUN export BUILD_DEPS="git \
                 linux-headers \
                 py-pip \
                 python-dev" && \
-    apk upgrade -U && \
-    apk --no-cache add dialog \
-                       python \
+                       \
+    apk --no-cache add augeas-libs \
+                       dialog \
                        openssl-dev \
-		               augeas-libs \
+                       python \
                        ${BUILD_DEPS} && \
     pip --no-cache-dir install virtualenv && \
     git clone https://github.com/letsencrypt/letsencrypt /opt/certbot/src && \

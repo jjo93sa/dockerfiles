@@ -27,15 +27,15 @@
 #     (1) Build this file yourself;
 #     (2) Use the pre-built image available at r.j2o.it/glances.
 #
-#   Building the image is achieved like this:
+#   (1) Building the image is achieved like this:
 #
 #     docker build --build-arg "ARCH=arm32v6" -t <repo>/glances .
 #
-#   Without the --build-arg parameter, the image built defaults for X86-64
+#   Without the --build-arg parameter the image built defaults for X86-64
 #   processors. Specifying the ARCH in this way allows images for other
 #   architectures to be built (arm32v6 for Raspberry Pis for example).
 #
-#   Pulling the image can be achieved like this:
+#   (2) Pulling the image can be achieved like this:
 #
 #     docker pull r.j2o.it/glances
 #     docker pull r.j2o.ir/arm32v6/glances
@@ -68,36 +68,35 @@ LABEL version "0.1"
 LABEL status "development"
 
 # Install python, plus some development tools to build later packages
-RUN apk --no-cache update && \
-	apk --no-cache add alpine-sdk \
-					linux-headers \
-					python \
-					python-dev \
-					py-pip && \
-	# Use pip to install glances and modules we need
+RUN apk --no-cache add alpine-sdk \
+                       linux-headers \
+                       python \
+                       python-dev \
+                       py-pip && \
+# Use pip to install glances and modules we need
     pip install glances[ip,folders,docker,cpuinfo,action] && \
-	pip install bernhard \
-				couchdb \
-			   	elasticsearch \
-			   	influxdb \
-			   	kafka-python \
-			   	pika \
-			   	potsdb \
-			   	prometheus-client \
-			   	statsd \
-			   	protobuf \
-			   	futures \
-			   	python-dateutil \
-			   	pytz && \
-	# Remove the development tools, which we don't need any more
-	apk del alpine-sdk python-dev py-pip linux-headers
+    pip install bernhard \
+                couchdb \
+                elasticsearch \
+                influxdb \
+                kafka-python \
+                pika \
+                potsdb \
+                prometheus-client \
+                statsd \
+                protobuf \
+                futures \
+                python-dateutil \
+                pytz && \
+    # Remove the development tools, which we don't need any more
+    apk del alpine-sdk python-dev py-pip linux-headers
 
 # Comment out these two lines because they cause exceptions on the RPi
 RUN sed -i -e "s/self.stats\['cpu_hz_current'\] = /#self.stats['cpu_hz_current'] = /g" \
-		-e "s/self.stats\['cpu_hz'\] = /#self.stats['cpu_hz'] = /g" \
-		/usr/lib/python2.7/site-packages/glances/plugins/glances_quicklook.py
+           -e "s/self.stats\['cpu_hz'\] = /#self.stats['cpu_hz'] = /g" \
+            /usr/lib/python2.7/site-packages/glances/plugins/glances_quicklook.py
 
-# Copy over the asstes files: config and entry script
+# Copy over the config and entry script
 RUN mkdir -p /etc/glances
 COPY glances.conf /etc/glances/
 COPY start-glances /usr/local/bin

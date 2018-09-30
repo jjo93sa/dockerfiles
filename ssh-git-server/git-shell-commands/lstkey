@@ -1,4 +1,25 @@
 #!/bin/sh
+#
+# Title:  git-shell-commands/lstkey
+#
+# Description:
+#   Script to list all public keys in authorized_keys.
+#
+# Dependencies:
+#   None
+#
+# Credits:
+#   None
+#
+# Usage:
+#   Used as part of git-shell-commands under git shell.
+#
+# Maintainer:
+#   James Osborne, dr.j.osborne@gmail.com
+#
+# License:
+#   MIT, see LICENSE file in repoistory root.
+#
 
 echo "ssh-git-server running in Docker says the following keys are knonwn:"
 echo

@@ -1,4 +1,27 @@
 #!/bin/sh
+#
+# Title: git-shell-commands/addkey
+#
+# Description:
+#   Assumes all parameters to this script form part of an ssh public key,
+#   which is then inserted into authorized_keys, allowing authentication
+#   using that key. I wish I was better able to handle the shell word-splitting
+#
+# Dependencies:
+#   None
+#
+# Credits:
+#   None
+#
+# Usage:
+#   Used as part of git-shell-commands under git shell.
+#
+# Maintainer:
+#   James Osborne, dr.j.osborne@gmail.com
+#
+# License:
+#   MIT, see LICENSE file in repoistory root.
+#
 for arg in "$@"
 do
     echo -n "$arg " >> /home/git/.ssh/authorized_keys

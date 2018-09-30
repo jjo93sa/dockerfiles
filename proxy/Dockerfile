@@ -5,13 +5,14 @@
 #   An http/https proxy based on the official nginx:alpine image. Added tools
 #   to help with debugging connections. An exmaple nginx.conf file is included
 #   as a guideline.
-# 
+#
 # Credits:
 #   None.
 #
 # Usage:
-#   Usage is as simple as these four steps:
-#   (1) Build an image from this Dockerfile 
+#   Usage is as simple as these three steps:
+#
+#   (1) Build an image from this Dockerfile
 #   (2) Launch a container from the image somthing like this:
 #
 #         docker run -it --rm --name roxy \
@@ -26,9 +27,13 @@
 #
 #   (3) Enjoy proxy'd services and debugging with the new tools.
 #
-# Maintainer: dr.j.osborne@gmail.com
+#   Alternatively, you can download pre-built images, see r.j2o.it.
 #
-# License: MIT, see file in repository root.
+# Maintainer:
+#   James Osborne, dr.j.osborne@gmail.com
+#
+# License:
+#   MIT, see file in repository root.
 #
 ARG ARCH=library
 ARG SRCT=alpine
@@ -39,8 +44,9 @@ LABEL version "0.1"
 LABEL status "development"
 
 # Add the following packages for debugging purposes
-RUN apk --no-cache update && apk --no-cache add bash bind-tools curl nmap
+RUN apk --no-cache add bash \
+                       bind-tools \
+                       curl \
+                       nmap
 
 EXPOSE 443
-
-

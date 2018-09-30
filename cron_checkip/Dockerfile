@@ -22,9 +22,9 @@
 #
 #        --build-arg CRON_SPEC="* * * * *"
 #
-#	For ease of automated building, we define CRON_SPEC in this file. If
-#	building from the Dockerfile, you may still over-ride this setting during
-#	build by specifying the --build-arg as above.
+#   For ease of automated building, we define CRON_SPEC in this file. If
+#   building from the Dockerfile, you may still over-ride this setting during
+#   build by specifying the --build-arg as above.
 #
 #   This image uses a default stage 2 base of r.j2o.it/cron, which is built for
 #   X86-64 processors. The default architecture can be changed at build-time
@@ -36,28 +36,32 @@
 #   (1) This Dockerfile uses a multi-stage build, which requires Docker >17.05.
 #   (2) The build must have access to the following GitHub repositories:
 #
-#	       jjo93sa/notification-utils
-#	       jjo93sa/script-utils
-#	       jjo93sa/ip-utils
+#          jjo93sa/notification-utils
+#          jjo93sa/script-utils
+#          jjo93sa/ip-utils
 #
-#	(3) There must be an image of r.j2o.it/cron available in your Docker system
-#	(4) You must have accounts at pushover.net, ipinfo.io and DuckDNS
-#	(5) The checkip.env file must be populated with your tokens from those
-#	    services
+#   (3) There must be an image of r.j2o.it/cron available in your Docker system
+#   (4) You must have accounts at pushover.net, ipinfo.io and DuckDNS
+#   (5) The checkip.env file must be populated with your tokens from those
+#       services
 #
 # Credits:  None
 #
 # Usage:
-#   Usage of this file is very simple, just download the image from
-#   r.j2o.it/cron_checkip. If you prefer to build your own, for example to set
-#   the CRON_SPEC or other parameters, the steps are:
+#   Usage of this file is very simple, just download the pre-built image for
+#   your architecture from r.j2o.it, which provides lists for all available
+#   images. For example, docker pull r.j2o.it/arm32v6/cron_checkip and jump to
+#   (3) below.
+#
+#   If you prefer to build your own, for example to set the CRON_SPEC or other
+#   parameters, the steps are:
 #
 #   (1) Create an image of cron/Dockerfile from this repository, or download
-#   the pre-built image: r.j2o.it/cron
-#   (2) Build this file, specifying the correct repository and cron times:
+#   the pre-built image for your architecture from: r.j2o.it
+#   (2) Build this file, specifying the correct ARCH and CRON_SPEC:
 #
 #           docker build --build-arg CRON_SPEC="<insert>" \
-#                        --build-arg REPO="XXXX" \
+#                        --build-arg ARCH="XXXX" \
 #                        -t <your-tag>/cron_checkip .
 #
 #       (which requires a previously built cron/Dockerfile image)
@@ -65,7 +69,7 @@
 #   (3) Edit checkip.env with your token information
 #   (4) Run a container from the image built in (2):
 #
-#           docker run -d -env-file checkip.env \
+#           docker run -d --env-file checkip.env \
 #                       --rm --name checkip <your-tag>/cron_checkip
 #
 # Maintainer:
@@ -98,7 +102,7 @@ LABEL version "1.1"
 LABEL status "production"
 
 # Add jq and curl, which are needed in the scripts below
-RUN apk --no-cache add jq curl
+RUN apk --no-cache add curl jq
 
 # Copy the scripts we need from the intermediate
 # NB: ./task is copied via an ONBUILD from parent image

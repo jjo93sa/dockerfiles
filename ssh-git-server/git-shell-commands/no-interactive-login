@@ -1,4 +1,27 @@
 #!/bin/bash
+#
+# Title:  git-shell-commands/no-interactive-login
+#
+# Description:
+#   git-shell prevents interactive login when a user attempts to login (even
+#   through ssh). This script is run instead, and displays a message. We list
+#   the available commands.
+#
+# Dependencies:
+#   None
+#
+# Credits:
+#   None
+#
+# Usage:
+#   Used as part of git-shell-commands under git shell.
+#
+# Maintainer:
+#   James Osborne, dr.j.osborne@gmail.com
+#
+# License:
+#   MIT, see LICENSE file in repoistory root.
+#
 
 cat <<End-of-message
 
@@ -9,6 +32,7 @@ You may use the following commands:
 
 End-of-message
 
+# Search under the git user's home for executable files in git-shell-commands
 CMD_LIST=( $(find ~/git-shell-commands -type f -perm +111 | sort) )
 
 for CMD_ENTRY in "${CMD_LIST[@]}"

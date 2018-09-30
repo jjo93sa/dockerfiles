@@ -49,10 +49,10 @@ LABEL status "production"
 LABEL version "1.0"
 
 RUN apk --no-cache add ca-certificates \
-	groff \
-	less \
-	python \
-	py2-pip
+                       groff \
+                       less \
+                       python \
+                       py2-pip
 
 RUN pip install awscli
 
