@@ -21,17 +21,17 @@
 #              implies that the parent images must be built before the Type 3
 #              files.
 #
-#   We ensure that the Type 1 and 2 images are built first. Determination of
-#   image type is performed by examining the name of the directory containing
-#   the Dockerfile. Any directory name including an underscore (_) is deemed to
-#   be a Type 3 image. For example, cron_certbot is a Type 3 image derived from
-#   the Type 2 image cron.
+#   We ensure that the Type 1 and 2 images are built first. Type 3 images are
+#   listed in a file called "subordinate". This file must have blank line if
+#   no dependent, or Type 3 Docker files exist, otherwise no images will be
+#   built.
 #
 # Dependencies:
 #   (1) Assumes that the Dockerfiles are contained in a structure like this:
 #       ./project-name/Dockerfile
-#   (2) Assumes any Dockerfile-containing directory with _ in the name must be
-#       built at the end of the queue (to ensure any base components are built)
+#   (2) Assumes any Type 3 Docker files are listed in a file called
+#       "subordinate" in the root of the Docker file structure. (See example
+#       in this repo.)
 #
 # Credits:
 #   Heavily based on the build-all script of jessfraz, see:
@@ -53,6 +53,9 @@
 #                     working directory
 #           -r REG    Set the upstream registry to REG; default: rw.j2o.it
 #           -t TAG    Set the tag to apply to new images; default: latest
+#       Two environment variables are used to control the docker build command:
+#       NO_CACHE - which is used to set the --no-cache switch &
+#       QUIET - which is used to set the -q switch
 #   (3) Check the build-errors.txt file for any problems during the build.
 #
 # Maintainer:
@@ -69,7 +72,39 @@ SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[
 
 ERROR_FILE="$(pwd)/build-errors.txt"
 
-function help()
+
+function box
+{
+    t="xx$1xx"
+    c=${2:-=}
+    echo ${t//?/$c}
+    echo "$c $1 $c"
+    echo ${t//?/$c}
+}
+
+function info
+{
+    tput setaf 4
+    box "$@"
+    tput sgr0
+}
+
+function success
+{
+    tput setaf 2
+    box "$@"
+    tput sgr0
+}
+
+function fail
+{
+    tput setaf 1
+    box "$@"
+    tput sgr0
+}
+
+
+function help
 {
 cat <<End-of-message
 
@@ -99,6 +134,10 @@ function build_push()
     local TAG=$4
     local BUILD_DIR=$5
 
+    # Some environment variable from the host to control how we build
+    QUIET=${QUIET+-q}
+    NO_CACHE=${NO_CACHE+--no-cache}
+
     # Set some defaults for the case we're building standard amd64 images
     # BUILD_ARG can be empty for amd64 because of Dockerfile defaults
     # BUILD_STR uses the Docker Hub convention: amd64 has no architecture field
@@ -117,17 +156,15 @@ function build_push()
         BUILD_STR="$REGISTRY/${ARCH##*\/}/$IMAGE:$TAG"
     fi
 
-    echo "Executing docker build $BUILD_STR arg $BUILD_ARG with context $BUILD_DIR"
+    # Build the image
+    echo "Building $BUILD_STR $BUILD_ARG with context $BUILD_DIR"
+    docker build ${QUIET} ${NO_CACHE} --rm --force-rm ${BUILD_ARG} -t $BUILD_STR $BUILD_DIR || return 1
 
-    docker build --rm --force-rm ${BUILD_ARG} -t $BUILD_STR $BUILD_DIR || return 1
-
-    echo "                       ---                                   "
-    echo " SUCCESS: built $BUILD_STR"
-    echo "                       ---                                   "
-
-    #Docker push
+    # Push the image
     echo "Pushing $BUILD_STR"
-    docker push $BUILD_STR
+    docker push $BUILD_STR >/dev/null || return 2
+
+    success  "SUCCESS: built & pushed $BUILD_STR"
 }
 
 function process_files()
@@ -151,16 +188,13 @@ function process_files()
     fi
 
     {
-        echo "                       ---                                   "
-        echo " Starting build for: $ARCH/$IMAGE"
-        echo "                       ---                                   "
+        info  "Starting build for: $ARCH/$IMAGE"
 
         # build_push $REPO $IMAGE $TAG $BUILD_DIR
         $SCRIPT build_push "${2}" "${ARCH}" "${IMAGE}" "$4" "${BUILD_DIR}"
     } || {
-        echo "FAIL: Building ${IMAGE}:${4} for ${ARCH} FAILED" | tee -a $ERROR_FILE
+        fail "FAIL: Building ${IMAGE}:${4} for ${ARCH} FAILED with error $?" | tee -a $ERROR_FILE
     }
-    echo
     echo
 }
 
@@ -214,9 +248,9 @@ main()
 
     IFS=$'\n'
     # Generate a list of Dockerfiles (type 1 and 2)
-    DCF_LIST=( $(find -L ${DCF_DIR} -iname "*Dockerfile" -not -path "*_*" | sort -d) )
+    DCF_LIST=( $(find -L ${DCF_DIR} -iname "*Dockerfile" | grep -vf ${DCF_DIR}/subordinate | sort -d) )
     # Generate a list of Dockerfiles (type 3)
-    DEP_LIST=( $(find -L ${DCF_DIR} -iname "*Dockerfile" -and -path "*_*" | sort -d) )
+    DEP_LIST=( $(find -L ${DCF_DIR} -iname "*Dockerfile" | grep -f ${DCF_DIR}/subordinate  | sort -d) )
     unset IFS
 
     IFS=',' read -ra ARC_LIST <<< "$IMG_ARC"
@@ -225,10 +259,10 @@ main()
     then
         # This is where we call parallel with the array list:
         # Type 1 & 2:
-        parallel --verbose -u -j"${MAX_JOB}" $SCRIPT process_files "{1}" \
+        parallel -u -j "${MAX_JOB}" $SCRIPT process_files "{1}" \
             "$OUR_REG" "{2}" "$OUR_TAG" ::: "${DCF_LIST[@]}" ::: "${ARC_LIST[@]}"
         # Type 3:
-        parallel --verbose -u -j"${MAX_JOB}" $SCRIPT process_files "{1}" \
+        parallel -u -j "${MAX_JOB}" $SCRIPT process_files "{1}" \
             "$OUR_REG" "$OUR_REG/{2}" "$OUR_TAG" ::: "${DEP_LIST[@]}" ::: "${ARC_LIST[@]}"
     else
         for ARCH in "${ARC_LIST[@]}"
