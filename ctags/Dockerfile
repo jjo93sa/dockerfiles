@@ -25,7 +25,7 @@
 #   Run the container in the root of the project requiring tags:
 #
 #       docker run -it --mount type=bind,source="$(pwd)",target=/data \
-#          --rm --name ctgas <repo>/ctags <params> .
+#          --rm --name ctags <repo>/ctags <params> .
 #
 #       If the container is run without any parameters, it defaults to showing
 #       the languages supported by this version of ctags: −−list−languages
