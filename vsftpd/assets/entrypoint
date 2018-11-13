@@ -1,5 +1,27 @@
 #!/bin/bash
 
+# Title:
+#   entrypoint
+#
+# Description:
+#   Script to set-up and configure vsFTPd in a Docker container
+#
+# Dependencies:
+#   Requires confd (https://github.com/kelseyhightower/confd)
+#
+# Credits:
+#   None
+#
+# Usage:
+#   Called from the Docker Entrypoint
+#
+# Maintainer:
+#   James Osborne, dr.j.osborne@gmail.com
+#
+# License:
+#   MIT, see LICENSE file in repoistory root.
+#
+
 # Run confd once to create the config files from the templates
 /usr/local/bin/confd -onetime -backend env
 
@@ -12,5 +34,5 @@ rm /etc/vsftpd/virtual_users.txt
 # Limit access to the PAM password database file
 chmod 600 /etc/vsftpd/virtual_users.db
 
-# Start a standalone vsFTPd process
+# Start a standalone vsFTPd process, execing so it runs as the main proc
 exec /usr/sbin/vsftpd /etc/vsftpd/vsftpd.conf
