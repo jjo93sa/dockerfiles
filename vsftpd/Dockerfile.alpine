@@ -1,8 +1,9 @@
 # Title:  vsftpd/Dockerfile
 #
 # Description:
-#   Definition for Docker container to run vsftpd, the FTP daemon, which is
-#   useful for macOS, which doesn't have an FTP server by default.
+#   CURRENTLY not functional. Alpine Linux has a missing PAM library,
+#   pam_userdb. My attempts to compile this library from source have failed so
+#   far.
 #
 # Dependencies:
 #   None
@@ -11,6 +12,7 @@
 #   None
 #
 # Usage:
+#   None
 #
 # Maintainer:
 #   James Osborne, dr.j.osborne@gmail.com
@@ -48,8 +50,6 @@ COPY --from=confd /go/bin/confd /usr/local/bin/confd
 
 RUN apk --no-cache add bash db db-utils vsftpd
 
-#RUN mkdir -p /etc/confd/{conf.d,templates}
-
 COPY confd/ /etc/confd/
 COPY assets/vsftpd_virtual /etc/pam.d/
 COPY assets/entrypoint /usr/local/bin/
@@ -62,4 +62,3 @@ RUN adduser -D -H -h /ftp -G virtual virtual
 EXPOSE 20 21
 
 ENTRYPOINT [ "/usr/local/bin/entrypoint" ]
-#CMD [ "-h" ]
