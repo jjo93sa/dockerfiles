@@ -1,0 +1,49 @@
+#[vsftpd_conf]
+# Run in the foreground to keep the container running:
+background=NO
+listen=yes
+
+# This disables anonymous FTP for security, and enables non-anonymous FTP
+# which is what virtual users need
+anonymous_enable=NO
+local_enable=YES
+
+# These ensure that for security purposes, no write commands are allowed.
+write_enable=NO
+anon_upload_enable=NO
+anon_mkdir_write_enable=NO
+anon_other_write_enable=NO
+
+# This makes sure that the virtual user is restricted to the virtual FTP area
+chroot_local_user=YES
+secure_chroot_dir=/var/ftp
+
+# Added by JO to make work under centos
+allow_writeable_chroot=YES
+pasv_promiscuous=YES
+write_enable=YES
+virtual_use_local_privs=YES
+
+## Enable virtual users
+guest_enable=YES
+guest_username=virtual
+
+## PAM file name
+pam_service_name=vsftpd_virtual
+
+## Enable logging
+xferlog_enable=YES
+log_ftp_protocol=YES
+xferlog_file=/var/log/vsftpd/vsftpd.log
+
+## Enable passive mode
+pasv_enable=YES
+
+## These values will be populated by confd
+{{ if getenv "PASV_ADDRESS" }}
+pasv_address={{getenv "PASV_ADDRESS"}}
+{{end}}
+pasv_min_port={{getenv "PASV_MIN_PORT" "3000"}}
+pasv_max_port={{getenv "PASV_MAX_PORT" "3009"}}
+
+seccomp_sandbox=NO

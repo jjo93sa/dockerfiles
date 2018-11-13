@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Run confd once to create the config files from the templates
+/usr/local/bin/confd -onetime -backend env
+
+# Create the Berkley DB file for PAM
+/usr/bin/db_load -T -t hash -f /etc/vsftpd/virtual_users.txt /etc/vsftpd/virtual_users.db
+
+# Delete the confd-created source file
+rm /etc/vsftpd/virtual_users.txt
+
+# Limit access to the PAM password database file
+chmod 600 /etc/vsftpd/virtual_users.db
+
+# Start a standalone vsFTPd process
+exec /usr/sbin/vsftpd /etc/vsftpd/vsftpd.conf

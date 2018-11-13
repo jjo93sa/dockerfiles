@@ -1,0 +1,65 @@
+# Title:  vsftpd/Dockerfile
+#
+# Description:
+#   Definition for Docker container to run vsftpd, the FTP daemon, which is
+#   useful for macOS, which doesn't have an FTP server by default.
+#
+# Dependencies:
+#   None
+#
+# Credits:
+#   None
+#
+# Usage:
+#
+# Maintainer:
+#   James Osborne, dr.j.osborne@gmail.com
+#
+# License:
+#   MIT, see LICENSE file in repoistory root.
+#
+
+
+ARG ARCH=library
+ARG SRCT=latest
+
+FROM golang:1.9-alpine as confd
+
+ARG CONFD_VERSION=0.16.0
+
+ADD https://github.com/kelseyhightower/confd/archive/v${CONFD_VERSION}.tar.gz /tmp/
+
+RUN apk add --no-cache \
+    bzip2 \
+    make && \
+    mkdir -p /go/src/github.com/kelseyhightower/confd && \
+    cd /go/src/github.com/kelseyhightower/confd && \
+    tar --strip-components=1 -zxf /tmp/v${CONFD_VERSION}.tar.gz && \
+    go install github.com/kelseyhightower/confd && \
+    rm -rf /tmp/v${CONFD_VERSION}.tar.gz
+
+FROM $ARCH/alpine:$SRCT
+
+LABEL maintainer "dr.j.osborne@gmail.com"
+LABEL status "production"
+LABEL version "1.0"
+
+COPY --from=confd /go/bin/confd /usr/local/bin/confd
+
+RUN apk --no-cache add bash db db-utils vsftpd
+
+#RUN mkdir -p /etc/confd/{conf.d,templates}
+
+COPY confd/ /etc/confd/
+COPY assets/vsftpd_virtual /etc/pam.d/
+COPY assets/entrypoint /usr/local/bin/
+
+RUN chmod 755 /usr/local/bin/entrypoint
+
+RUN addgroup virtual
+RUN adduser -D -H -h /ftp -G virtual virtual
+
+EXPOSE 20 21
+
+ENTRYPOINT [ "/usr/local/bin/entrypoint" ]
+#CMD [ "-h" ]
