@@ -97,7 +97,7 @@ RUN mkdir -p /var/ftp/
 
 # Create a virtual user and home directory
 RUN groupadd virtual
-RUN useradd  -m -d /ftp -g virtual virtual
+RUN useradd  -m -d /files -g virtual virtual
 
 EXPOSE 20 21
 
