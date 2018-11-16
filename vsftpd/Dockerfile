@@ -51,7 +51,7 @@ ARG ARCH=library
 ARG SRCT=stretch-slim
 
 # Build #1
-FROM golang:stretch as confd
+FROM $ARCH/golang:stretch as confd
 
 ARG CONFD_VERSION=0.16.0
 
