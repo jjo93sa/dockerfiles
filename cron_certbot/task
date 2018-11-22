@@ -53,7 +53,8 @@ for DOMAINS in "${ARRAY_OF_LISTS[@]}"; do
     if [ -d "/etc/letsencrypt/live/${CN}" ]; then
         # Then we already have certs for the CN and SAN(s),
         # so renew this domain's certificates
-        certbot renew
+        #certbot renew # JO 2018-11-22 this doesn't work
+        certbot renew --standalone --preferred-challenges http
     else
         # There are no certs for this CN, SAN(s) so get them:
 
