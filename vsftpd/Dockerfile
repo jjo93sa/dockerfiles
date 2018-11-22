@@ -99,7 +99,8 @@ RUN chmod 755 /usr/local/bin/entrypoint
 RUN mkdir -p /etc/vsftpd/
 RUN mkdir -p /var/ftp/
 
-# Create a virtual user and home directory
+# Create a virtual user and home directory; -m not working, hence mkdir
+RUN mkdir -p /vsftpd/data
 RUN groupadd virtual
 RUN useradd  -m -d /vsftpd/data -g virtual virtual
 
