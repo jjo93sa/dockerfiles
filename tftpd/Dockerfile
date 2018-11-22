@@ -22,7 +22,7 @@ FROM $ARCH/alpine:$SRCT
 
 # Meta data for the image
 LABEL maintainer="dr.j.osborne@gmail.com"
-LABEL version "0.2"
+LABEL version "0.3"
 LABEL status "Development"
 
 # Install the tftp server
