@@ -59,8 +59,8 @@ ARG SRCT=latest
 FROM $ARCH/cron:$SRCT
 
 LABEL maintainer "dr.j.osborne@gmail.com"
-LABEL version "0.2"
-LABEL status "development"
+LABEL version "0.3"
+LABEL status "test"
 
 WORKDIR /opt/certbot
 ENV PATH /opt/certbot/venv/bin:$PATH
