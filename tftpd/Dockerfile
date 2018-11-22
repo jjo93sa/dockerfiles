@@ -22,13 +22,17 @@ FROM $ARCH/alpine:$SRCT
 
 # Meta data for the image
 LABEL maintainer="dr.j.osborne@gmail.com"
-LABEL version "0.1"
+LABEL version "0.2"
 LABEL status "Development"
 
 # Install the tftp server
 RUN apk add --no-cache tftp-hpa
 
-# Build ARGS
+# Set-up the entrypoint script
+COPY assets/entrypoint /usr/local/bin/
+RUN chmod 755 /usr/local/bin/entrypoint
+
+# Build ARGS, these can be overridden at buildtime
 ARG TFTP_PORT=69
 ARG SERVER_LOW=60005
 ARG SERVER_TOP=60010
@@ -37,14 +41,19 @@ ARG SERVER_TOP=60010
 EXPOSE $TFTP_PORT/udp
 EXPOSE ${SERVER_LOW}-${SERVER_TOP}/udp
 
+# Make a new user and group, and associated home dir
+RUN mkdir -p /tftpd/data \
+        && addgroup tftpd-grp \
+        && adduser -S -s /bin/sh -h /tftpd/data tftpd-user -G tftpd-grp
+
+# By default tftpd runs as user nobody so we change it to our user
+RUN chown -R tftpd-user:tftpd-grp /tftpd && chmod -R a+w /tftpd
+
+# Set the environment variables, which can be changed at runtime
 ENV PORT_LOW=${SERVER_LOW}
 ENV PORT_TOP=${SERVER_TOP}
+ENV TFTP_USR=tftpd-user
 
-# Need to change permissions or ownership of the tftpboot directory
-# By default tftpd runs as user nobody
-RUN mkdir /files && chown nobody /files && chmod a+w /files
-
-ENTRYPOINT [ "in.tftpd" ]
-#CMD [ "-L", "--secure", "--create", "--port-range", "$PORT_LOW:$PORT_TOP", "/files" ]
-CMD [ "-L", "--secure", "/files", "--create", "-v", "-v", "-v", "--port-range", "$SERVER_LOW:$SERVER_TOP" ]
-
+#ENTRYPOINT [ "in.tftpd" ]
+#CMD [ "-L", "--secure", "/tftpd/data", "--create", "-v", "-v", "-v", "--port-range", "$SERVER_LOW:$SERVER_TOP" ]
+ENTRYPOINT [ "/usr/local/bin/entrypoint" ]
