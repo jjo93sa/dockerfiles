@@ -57,7 +57,7 @@ COPY assets/entrypoint /usr/local/bin/
 RUN chmod 755 /usr/local/bin/entrypoint
 
 RUN addgroup virtual
-RUN adduser -D -H -h /files -G virtual virtual
+RUN adduser -D -H -h /vsftpd/data -G virtual virtual
 
 EXPOSE 20 21
 

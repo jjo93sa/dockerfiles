@@ -22,7 +22,7 @@
 #
 #   (2) Run the container:
 #
-#       docker run -it -v `pwd`:/output --rm --name wget <repo>/wget <params>
+#       docker run -it -v `pwd`:/wget/data --rm --name wget <repo>/wget <params>
 #
 #       If the container is run without any parameters, it defaults to showing
 #       the wget help (wget -h).
@@ -39,11 +39,11 @@ FROM $ARCH/alpine:$SCRT
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "production"
-LABEL version "1.0"
+LABEL version "1.1"
 
 RUN apk --no-cache add wget
 
-WORKDIR /output
+WORKDIR /wget/data
 
 RUN addgroup -S wget-grp && adduser -S wget-user -G wget-grp
 USER wget-user

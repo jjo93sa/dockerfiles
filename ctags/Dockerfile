@@ -24,7 +24,7 @@
 #
 #   Run the container in the root of the project requiring tags:
 #
-#       docker run -it --mount type=bind,source="$(pwd)",target=/data \
+#       docker run -it --mount type=bind,source="$(pwd)",target=/ctags/data \
 #          --rm --name ctags <repo>/ctags <params> .
 #
 #       If the container is run without any parameters, it defaults to showing
@@ -42,11 +42,14 @@ FROM $ARCH/alpine:$SRCT
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "test"
-LABEL version "0.1"
+LABEL version "0.2"
 
 RUN apk --no-cache add ctags
 
-WORKDIR /data
+WORKDIR /ctags/data
+
+RUN addgroup -S ctags-grp && adduser -S ctags-user -G ctags-grp
+USER ctags-user
 
 ENTRYPOINT [ "ctags" ]
 CMD [ "--list-languages" ]

@@ -17,7 +17,7 @@
 # Usage:
 #   To use the Docker container either:
 #
-#   (1) Build the image whilst in the nmap directory:
+#   (1) Build the image whilst in the vsftpd directory:
 #
 #       docker build -t <repo>/vsftpd .
 #
@@ -29,7 +29,7 @@
 #   Run the container:
 #
 #       docker run -it -e FTP_USER=james -e FTP_PASS=james -p 21:21 -p 20:20 \
-#          -p 3000-3009:3000-3009 <repo>/vsftpd
+#          -p 3000-3009:3000-3009 -v <local>:/vsftpd/data <repo>/vsftpd
 #
 #   Changing the FTP_USER and FTP_PASS variables, and the port mappings, to suit your use case.
 #
@@ -38,6 +38,10 @@
 #       PASV_ADDRESS  if undeclared, vsftpd used the incoming socket address
 #       PASV_MIN_PORT if undeclared, defaults to 3000
 #       PASV_MAX_PORT if undeclared, defaults to 3009
+#
+#   It might be easier, and in the case of the username and password
+#   parameters more secure, to put all the environment variables in a file and
+#   use that with the --env-file flag on docker run.
 #
 # Maintainer:
 #   James Osborne, dr.j.osborne@gmail.com
@@ -97,7 +101,7 @@ RUN mkdir -p /var/ftp/
 
 # Create a virtual user and home directory
 RUN groupadd virtual
-RUN useradd  -m -d /files -g virtual virtual
+RUN useradd  -m -d /vsftpd/data -g virtual virtual
 
 EXPOSE 20 21
 
