@@ -96,13 +96,10 @@ COPY assets/entrypoint /usr/local/bin/
 RUN chmod 755 /usr/local/bin/entrypoint
 
 # Create some directories we need
-RUN mkdir -p /etc/vsftpd/
-RUN mkdir -p /var/ftp/
+RUN mkdir -p /etc/vsftpd/ /var/ftp/
 
-# Create a virtual user and home directory; -m not working, hence mkdir
-RUN mkdir -p /vsftpd/data
-RUN groupadd virtual
-RUN useradd  -m -d /vsftpd/data -g virtual virtual
+# Create a virtual user and home directory
+RUN mkdir -p /vsftpd && useradd  -m -d /vsftpd/data -U virtual
 
 EXPOSE 20 21
 
