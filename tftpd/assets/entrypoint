@@ -1,3 +1,37 @@
 #!/bin/sh
 
-in.tftpd -u ${TFTP_USR} -c -p -s /tftpd/data -L --port-range $PORT_LOW:$PORT_TOP
+# Title:  tftpd/entrypoint
+#
+# Description:
+#   A simple entrypoint script for starting a TFTP daemon under Alpine Linux.
+#   This script definitely needs more error and bounds checking, although since
+#   all the environment variables used are set during image build (from the
+#   Dockerfile) there should be little chance that they're incorrect.
+#
+# Dependencies:
+#   TFTP_USR is specified as a Docker build ARG, and copied into the container
+#   environment. It isn't intended that this parameter be changed.
+#   PORT_LOW and PORT_TOP are set to default values from the docker build,  but
+#   may also be overridden at run time.
+#
+# Credits:
+#   None
+#
+# Usage:
+#   Executed by the Docker container ENTRYPOINT command.
+#
+# Maintainer:
+#   James Osborne, dr.j.osborne@gmail.com
+#
+# License:
+#   MIT, see LICENSE file in repoistory root.
+#
+
+# Start the TFTP daemon:
+#  -L (--foreground) = do not detach from the foreground process
+#  -u (--user) = specify the username that the daemon will run as
+#  -c (--create) = allow new files to be created
+#  -p (--permissive) = perform no additional permissions checks
+#  -s (--secure) = chroot on startup to the given directory
+#  -R (--port-range) = the ephemeral port range
+/usr/sbin/in.tftpd -u ${TFTP_USR} -c -p -s /tftpd/data -L -R $PORT_LOW:$PORT_TOP
