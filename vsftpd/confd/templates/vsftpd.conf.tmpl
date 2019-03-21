@@ -1,40 +1,59 @@
 #[vsftpd_conf]
 # Run in the foreground to keep the container running:
 background=NO
-listen=yes
 
-# This disables anonymous FTP for security, and enables non-anonymous FTP
-# which is what virtual users need
+# Allow anonymous FTP? (Beware - allowed by default if you comment this out).
 anonymous_enable=NO
+
+# Uncomment this to allow local users to log in.
 local_enable=YES
-
-# These ensure that for security purposes, no write commands are allowed.
-write_enable=NO
-anon_upload_enable=NO
-anon_mkdir_write_enable=NO
-anon_other_write_enable=NO
-
-# This makes sure that the virtual user is restricted to the virtual FTP area
-chroot_local_user=YES
-secure_chroot_dir=/var/ftp
-
-# Added by JO to make work under centos
-allow_writeable_chroot=YES
-pasv_promiscuous=YES
-write_enable=YES
-virtual_use_local_privs=YES
 
 ## Enable virtual users
 guest_enable=YES
 guest_username=virtual
 
+## Virtual users will use the same permissions as anonymous
+virtual_use_local_privs=YES
+
+# Uncomment this to enable any form of FTP write command.
+write_enable=YES
+
 ## PAM file name
 pam_service_name=vsftpd_virtual
+
+## Home Directory for virtual users
+user_sub_token=$USER
+#local_root=/ftp/virtual/$USER
+local_root=/ftp/
+
+# You may specify an explicit list of local users to chroot() to their home
+# directory. If chroot_local_user is YES, then this list becomes a list of
+# users to NOT chroot().
+chroot_local_user=YES
+
+# Workaround chroot check.
+# See https://www.benscobie.com/fixing-500-oops-vsftpd-refusing-to-run-with-writable-root-inside-chroot/
+# and http://serverfault.com/questions/362619/why-is-the-chroot-local-user-of-vsftpd-insecure
+allow_writeable_chroot=YES
+
+## Hide ids from user
+hide_ids=YES
+
+## Set passive port address
+pasv_addr_resolve=NO
 
 ## Enable logging
 xferlog_enable=YES
 log_ftp_protocol=YES
 xferlog_file=/var/log/vsftpd/vsftpd.log
+
+## Enable active mode
+port_enable=YES
+connect_from_port_20=YES
+ftp_data_port=20
+
+## Disable seccomp filter sanboxing
+seccomp_sandbox=NO
 
 ## Enable passive mode
 pasv_enable=YES
@@ -45,5 +64,3 @@ pasv_address={{getenv "PASV_ADDRESS"}}
 {{end}}
 pasv_min_port={{getenv "PASV_MIN_PORT" "3000"}}
 pasv_max_port={{getenv "PASV_MAX_PORT" "3009"}}
-
-seccomp_sandbox=NO
