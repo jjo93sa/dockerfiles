@@ -11,7 +11,7 @@
 #   None
 #
 # Usage:
-#   To use the Docker container:
+#   To use the Docker image, either:
 #
 #   (1) Build the image whilst in the tree directory:
 #
@@ -20,7 +20,14 @@
 #       Alternatively, download a prebuilt image from r.j2o.it. Check this site
 #       for supported images/architectures: https://r.j2o.it
 #
-#   (2) Run the container:
+#   Or
+#
+#   (2) Download a prebuilt image from r.j2o.it:
+#
+#       docker pull r.j2o.it/tree          # for x86-64
+#       docker pull r.j2o.it/arm32v6/tree  # for arm32, Raspberry Pi-compatible
+#
+#   Then run the container:
 #
 #       docker run -it -v `pwd`:/tree/data --rm --name tree <repo>/tree <params>
 #
