@@ -1,19 +1,3 @@
-#
-# Title:  unix2dos/Dockerfile
-#
-# Description:  Definition for Docker container to run unix2dos.
-#
-# Usage:  See .dockerfunc for more details, but in brief:
-#
-# docker run --rm -it \
-#  -v host_dir:/input \
-#  -v host_dir2:/output \
-#  --name unix2dos \
-#  jjo93sa/unix2dos [-n] input [output]
-#
-# Maintainer: dr.j.osborne@gmail.com
-#
-
 # Title:  unix2dos/Dockerfile
 #
 # Description:
@@ -53,7 +37,6 @@
 #   MIT, see LICENSE file in repoistory root.
 #
 
-
 FROM alpine:latest
 
 LABEL maintainer "dr.j.osborne@gmail.com"
@@ -63,7 +46,7 @@ RUN apk --no-cache add \
    dos2unix \
    --repository http://dl-3.alpinelinux.org/alpine/edge/community/ --allow-untrusted
 
-WORKDIR [ "/unix2dos/data" ]
+WORKDIR /unix2dos/data
 
 ENTRYPOINT [ "unix2dos" ]
 CMD [ "-h" ]
