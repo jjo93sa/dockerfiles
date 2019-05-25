@@ -1,3 +1,6 @@
 cron_certbot
 cron_checkip
 rapimid
+unix2dos
+mac2unix
+unix2mac

@@ -37,14 +37,13 @@
 #   MIT, see LICENSE file in repoistory root.
 #
 
-FROM alpine:latest
+ARG ARCH=library
+ARG SRCT=latest
+FROM $ARCH/dos2unix:$SRCT
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "work in progress"
-
-RUN apk --no-cache add \
-   dos2unix \
-   --repository http://dl-3.alpinelinux.org/alpine/edge/community/ --allow-untrusted
+LABEL version "0.1"
 
 WORKDIR /unix2dos/data
 
