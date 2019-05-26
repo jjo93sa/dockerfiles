@@ -26,8 +26,23 @@
 #
 #       docker run -it --rm --name jq <repo>/jq <params>
 #
-#       If the container is run without any parameters, it defaults to showing
-#       the jq help (jq -h).
+#   If the container is run without any parameters, it defaults to showing
+#   the jq help (jq -h).
+#
+#   A function like this:
+#
+#      function jq()
+#       {
+#           read -d '' IN;
+#           echo -n "$IN" | docker run -i <repo>/jq "$*"
+#       }
+#
+#   can be used to add pipe like functionality to your container:
+#
+#       curl -s ipinfo.io | jq '.ip'
+#
+#   Where the jq invoked here is the function above, which creates the
+#   container and passes the data received from the pipe.
 #
 # Maintainer:
 #   James Osborne, dr.j.osborne@gmail.com
@@ -47,27 +62,3 @@ RUN apk --no-cache add jq
 
 ENTRYPOINT [ "jq" ]
 CMD [ "-h" ]
-
-#
-#
-# Title:  jq/Dockerfile
-#
-# Description:  Definition for Docker container to run jq json parser
-#
-# Usage:  See .dockerfunc for more details, but in brief:
-#
-# docker run -i jjo93sa/jq "$*"
-#
-# Maintainer: dr.j.osborne@gmail.com
-#
-#FROM debian:jessie
-#
-#LABEL maintainer "James Osborne <dr.j.osborne@gmail.com>"
-#LABEL status "work in progress"
-#
-#RUN apt-get update && apt-get install -y \
-#   jq \
-#   --no-install-recommends \
-#   && rm -rf /var/lib/apt/lists/*
-#
-#ENTRYPOINT [ "jq" ]
