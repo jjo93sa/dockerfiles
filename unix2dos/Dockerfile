@@ -45,7 +45,7 @@ LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "work in progress"
 LABEL version "0.1"
 
-WORKDIR /unix2dos/data
+WORKDIR /dos2unix/data
 
 ENTRYPOINT [ "unix2dos" ]
 CMD [ "-h" ]
