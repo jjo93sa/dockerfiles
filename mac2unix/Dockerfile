@@ -37,7 +37,7 @@
 #   MIT, see LICENSE file in repoistory root.
 #
 
-ARG ARCH=library
+ARG ARCH=r.j2o.it
 ARG SRCT=latest
 FROM $ARCH/dos2unix:$SRCT
 
