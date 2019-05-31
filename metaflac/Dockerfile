@@ -2,7 +2,9 @@
 #
 # Description:
 #   Definition for Docker container to run metaflac, which is useful for macOS,
-#   which doesn't have metaflac.
+#   which doesn't have metaflac. This application can be used to show and edit
+#   the metadata blocks in a FLAC file. metaflac is one component in the Alpine
+#   main/flac package.
 #
 # Dependencies:
 #   None
