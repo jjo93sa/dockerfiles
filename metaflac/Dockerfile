@@ -6,6 +6,8 @@
 #   the metadata blocks in a FLAC file. metaflac is one component in the Alpine
 #   main/flac package.
 #
+#   https://xiph.org/flac/documentation_tools_metaflac.html
+#
 # Dependencies:
 #   None
 #
