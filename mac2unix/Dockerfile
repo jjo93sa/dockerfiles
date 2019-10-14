@@ -37,9 +37,9 @@
 #   MIT, see LICENSE file in repoistory root.
 #
 
-ARG ARCH=r.j2o.it
-ARG SRCT=latest
-FROM $ARCH/dos2unix:$SRCT
+ARG REG=r.j2o.it
+ARG TAG=latest
+FROM $REG/dos2unix:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "work in progress"

@@ -51,10 +51,8 @@
 #   MIT, see LICENSE file in repoistory root.
 #
 
-ARG ARCH=library
-ARG SRCT=latest
-
-FROM $ARCH/alpine:$SRCT
+ARG TAG=latest
+FROM alpine:$TAG
 
 # Meta data for the image
 LABEL maintainer="dr.j.osborne@gmail.com"

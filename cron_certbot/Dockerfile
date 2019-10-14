@@ -54,9 +54,9 @@
 #   this file is covered by GPLv3. See the LICENSE file in the repoistory root.
 #
 ARG CRON_SPEC="29 17 * * 3"
-ARG ARCH=r.j2o.it
-ARG SRCT=latest
-FROM $ARCH/cron:$SRCT
+ARG REG=r.j2o.it
+ARG TAG=latest
+FROM $REG/cron:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL version "0.3"

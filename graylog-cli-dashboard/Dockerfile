@@ -1,4 +1,4 @@
-# Title:  graylog-cli-dashboard/Dockerfile
+
 #
 # Description:
 #   Definition for Docker image to run graylog-cli-dashboard in a container,
@@ -29,7 +29,7 @@
 #   (2) Download a prebuilt image from r.j2o.it:
 #
 #       docker pull r.j2o.it/graylog-cli-dashboard          # for x86-64
-#       docker pull r.j2o.it/arm32v6/graylog-cli-dashboard  # for arm32, Rasp Pi-compatible
+#       docker pull r.j2o.it/arm32v6/graylog-cli-dashboard  # for arm32, RPi
 #
 #   Then run the container:
 #
@@ -37,7 +37,7 @@
 #          <repo>/graylog-cli-dashboard <params>
 #
 #   If no parameters are provided, the container defaults to running the --help
-#   switch. 
+#   switch.
 #
 # Maintainer:
 #   James Osborne, dr.j.osborne@gmail.com
@@ -45,10 +45,8 @@
 # License:
 #   MIT, see LICENSE file in repoistory root.
 #
-FROM node:current-alpine
-#ARG ARCH=library
-#ARG SRCT=latest
-#FROM $ARCH/alpine:$SRCT
+ARG TAG=lts-alpine
+FROM node:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "work in progress"
@@ -65,9 +63,11 @@ ENV TZ Etc/UTC
 
 # More timezone stuff
 RUN cp /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-
+RUN npm config set unsafe-perm true
 # Install the module directly from GitHub, -g is global & installs deps
-RUN npm install github:jjo93sa/cli-dashboard -g
+#RUN npm install graylog-cli-dashboard -g
+RUN npm install github:jjo93sa/cli-dashboard -g --loglevel verbose -dd
 
+#COPY screen.js /usr/local/lib/node_modules/graylog-cli-dashboard/lib/
 ENTRYPOINT [ "graylog-dashboard" ]
 CMD [ "--help" ]

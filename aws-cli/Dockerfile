@@ -40,9 +40,8 @@
 #
 # License: MIT, see LICENSE file in repoistory root.
 #
-ARG ARCH=library
-ARG SRCT=latest
-FROM $ARCH/alpine:$SRCT
+ARG TAG=latest
+FROM alpine:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "production"

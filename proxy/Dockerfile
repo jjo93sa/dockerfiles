@@ -35,9 +35,8 @@
 # License:
 #   MIT, see file in repository root.
 #
-ARG ARCH=library
-ARG SRCT=alpine
-FROM $ARCH/nginx:$SRCT
+ARG TAG=alpine
+FROM nginx:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL version "0.1"

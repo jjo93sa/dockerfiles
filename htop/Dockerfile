@@ -34,7 +34,8 @@
 # License:
 #   MIT, see LICENSE file in repoistory root.
 #
-FROM alpine:latest
+ARG TAG=latest
+FROM alpine:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "test"

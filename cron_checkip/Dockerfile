@@ -82,9 +82,9 @@
 # Build stage 1:
 # Define CRON_SPEC before the first FROM to make it a global option
 ARG CRON_SPEC="*/5 * * * *"
-ARG ARCH=r.j2o.it
-ARG SRCT=latest
-FROM alpine AS intermediate
+ARG REG=r.j2o.it
+ARG TAG=latest
+FROM alpine:$TAG AS intermediate
 
 # Install git in intermediate
 RUN apk --no-cache add git
@@ -95,7 +95,7 @@ RUN git clone https://github.com/jjo93sa/notification-utils.git
 RUN git clone https://github.com/jjo93sa/ip-utils.git
 
 # Build stage 2:
-FROM $ARCH/cron:$SRCT
+FROM $REG/cron:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL version "1.1"

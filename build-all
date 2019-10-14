@@ -128,43 +128,26 @@ End-of-message
 
 function build_push()
 {
-    local REGISTRY=$1
-    local ARCH=$2
-    local IMAGE=$3
-    local TAG=$4
-    local BUILD_DIR=$5
+    # Parameters
+    # $1 - Registry
+    # $2 - Platform list
+    # $3 - Image name
+    # $4 - Tag
+    # $5 - build directory
+
+    local BLD_DIR=$5
+    local BLD_STR="$1/$3:$4"
 
     # Some environment variable from the host to control how we build
     QUIET=${QUIET+-q}
     NO_CACHE=${NO_CACHE+--no-cache}
 
-    # Set some defaults for the case we're building standard amd64 images
-    # BUILD_ARG can be empty for amd64 because of Dockerfile defaults
-    # BUILD_STR uses the Docker Hub convention: amd64 has no architecture field
-    BUILD_ARG=""
-    BUILD_STR="$REGISTRY/$IMAGE:$TAG"
+    # Build & push the image. buildx will build multiplatform images.
+    echo "Building $BLD_STR with context $BLD_DIR"
+    docker buildx build --platform ${2} -t ${BLD_STR} --push ${BLD_DIR} \
+        || return 1
 
-    # If we're building for another architecture, change the above strings
-    if [[ ! ${ARCH} =~ library ]]; then
-        # Our Dockerfiles can have the Architecture overridden at build time
-        # For Type 3 files this will be something like rw.j2o.it/arm32v6 to
-        # ensure that the build pulls the correct image from the registry
-        # For Types 1 & 2, this will be something like arm32v6
-        BUILD_ARG="--build-arg ARCH=$ARCH"
-        # BUILD_STR munge $ARCH for building a dependent image, see file header
-        # NB for Type 3 here we must strip the registry from the front of ARCH
-        BUILD_STR="$REGISTRY/${ARCH##*\/}/$IMAGE:$TAG"
-    fi
-
-    # Build the image
-    echo "Building $BUILD_STR $BUILD_ARG with context $BUILD_DIR"
-    docker build ${QUIET} ${NO_CACHE} --rm --force-rm ${BUILD_ARG} -t $BUILD_STR $BUILD_DIR || return 1
-
-    # Push the image
-    echo "Pushing $BUILD_STR"
-    docker push $BUILD_STR >/dev/null || return 2
-
-    success  "SUCCESS: built & pushed $BUILD_STR"
+    success  "SUCCESS: built & pushed $BLD_STR"
 }
 
 function process_files()
@@ -172,7 +155,7 @@ function process_files()
     # Parameters
     # $1 - File path from find
     # $2 - Registry
-    # $3 - Arch
+    # $3 - Arch list (buildx --platform)
     # $4 - Tag
 
     # $1 has format: path/to/wget/Dockerfile
@@ -180,20 +163,14 @@ function process_files()
     local IMAGE=${BUILD_DIR##*\/} # Gives us: wget
     local ARCH=$3
 
-    # If some variant of i386 has been selected for ARCH, use library instead
-    # (This emulates the functionality of DockerHub)
-    if [[ $ARCH =~ [Xx]86-64|[Xx]86_64|[Aa][Mm][Dd]64|[Ii]ntel|[Ii]386 ]]
-    then
-        ARCH="library"
-    fi
-
+    # Subshell
     {
-        info  "Starting build for: $ARCH/$IMAGE"
+        info  "Starting build for: $IMAGE"
 
         # build_push $REPO $IMAGE $TAG $BUILD_DIR
         $SCRIPT build_push "${2}" "${ARCH}" "${IMAGE}" "$4" "${BUILD_DIR}"
     } || {
-        fail "FAIL: Building ${IMAGE}:${4} for ${ARCH} FAILED with error $?" | tee -a $ERROR_FILE
+        fail "FAIL: Building ${IMAGE}:${4} FAILED with error $?" | tee -a $ERROR_FILE
     }
     echo
 }
@@ -241,9 +218,9 @@ main()
 
     # Use the command line params, or the following defaults:
     DCF_DIR="${DCF_DIR:-$(pwd)}"
-    IMG_ARC="${IMG_ARC:-library}"
+    IMG_ARC="${IMG_ARC:-linux/arm,linux/amd64}"
     OUR_REG="${OUR_REG:-rw.j2o.it}"
-    MAX_JOB="${MAX_JOB:-2}"
+    MAX_JOB="${MAX_JOB:-1}"
     OUR_TAG="${OUR_TAG:-latest}"
 
     IFS=$'\n'
@@ -253,34 +230,31 @@ main()
     DEP_LIST=( $(find -L ${DCF_DIR} -iname "*Dockerfile" | grep -f ${DCF_DIR}/subordinate  | sort -d) )
     unset IFS
 
-    IFS=',' read -ra ARC_LIST <<< "$IMG_ARC"
+    #IFS=',' read -ra ARC_LIST <<< "$IMG_ARC"
 
     if [ -x "$(command -v parallel)" ]
     then
         # This is where we call parallel with the array list:
         # Type 1 & 2:
         parallel -u -j "${MAX_JOB}" $SCRIPT process_files "{1}" \
-            "$OUR_REG" "{2}" "$OUR_TAG" ::: "${DCF_LIST[@]}" ::: "${ARC_LIST[@]}"
+            "$OUR_REG" "${IMG_ARC}" "$OUR_TAG" ::: "${DCF_LIST[@]}"
         # Type 3:
         parallel -u -j "${MAX_JOB}" $SCRIPT process_files "{1}" \
-            "$OUR_REG" "$OUR_REG/{2}" "$OUR_TAG" ::: "${DEP_LIST[@]}" ::: "${ARC_LIST[@]}"
+            "$OUR_REG" "${IMG_ARC}" "$OUR_TAG" ::: "${DEP_LIST[@]}"
     else
-        for ARCH in "${ARC_LIST[@]}"
+        # Parallel isn't installed, so let's perform the build(s) serially
+        # Process the type 1 and type 2 Dockerfiles, that is those that can
+        # be built without dependencies on others
+        for DCF in "${DCF_LIST[@]}"
         do
-            # Parallel isn't installed, so let's perform the build(s) serially
-            # Process the type 1 and type 2 Dockerfiles, that is those that can
-            # be built without dependencies on others
-            for DCF in "${DCF_LIST[@]}"
-            do
-                $SCRIPT process_files "$DCF" "$OUR_REG" "$ARCH" "$OUR_TAG"
-            done
+            $SCRIPT process_files "$DCF" "$OUR_REG" "$IMG_ARC" "$OUR_TAG"
+        done
 
-            # Process the type 3 Dockerfiles, that is those Dockerfiles that
-            # depend on type 1 or type 2 Dockerfiles
-            for DEP in "${DEP_LIST[@]}"
-            do
-                $SCRIPT process_files "$DEP" "$OUR_REG" "$OUR_REG/$ARCH" "$OUR_TAG"
-            done
+        # Process the type 3 Dockerfiles, that is those Dockerfiles that
+        # depend on type 1 or type 2 Dockerfiles
+        for DEP in "${DEP_LIST[@]}"
+        do
+            $SCRIPT process_files "$DEP" "$OUR_REG" "$IMG_ARC" "$OUR_TAG"
         done
     fi
 

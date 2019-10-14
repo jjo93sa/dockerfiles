@@ -50,36 +50,35 @@
 #   MIT, see LICENSE file in repoistory root.
 #
 
-
-ARG ARCH=library
-ARG SRCT=stretch-slim
-
 # Build #1
-FROM $ARCH/golang:stretch as confd
+ARG SRCT=stretch-slim
+#FROM golang:stretch as confd
+FROM golang:1.10.2-alpine as confd
 
-ARG CONFD_VERSION=0.16.0
+ARG TARGETARCH
+ARG TARGETOS
 
-ADD https://github.com/kelseyhightower/confd/archive/v${CONFD_VERSION}.tar.gz /tmp/
 ENV GOPATH /go
-RUN apt-get update && apt-get install -y \
-        bzip2 \
-        git \
-    make && \
-    mkdir -p /go/src/github.com/kelseyhightower/confd && \
-    cd /go/src/github.com/kelseyhightower/confd && \
-    tar --strip-components=1 -zxf /tmp/v${CONFD_VERSION}.tar.gz && \
-    go install github.com/kelseyhightower/confd && \
-    rm -rf /tmp/v${CONFD_VERSION}.tar.gz
+ENV GOOS $TARGETOS
+ENV GOARCH $TARGETARCH
+ENV CGO_ENABLED 0
+
+RUN apk add --no-cache make git
+
+RUN git clone https://github.com/kelseyhightower/confd.git $GOPATH/src/github.com/kelseyhightower/confd
+
+#RUN cd $GOPATH/src/github.com/kelseyhightower/confd && make
+RUN cd $GOPATH/src/github.com/kelseyhightower/confd && go build -v -x -o bin/confd .
 
 # Build #2
-FROM $ARCH/debian:$SRCT
+FROM debian:$SRCT
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "production"
 LABEL version "1.0"
 
 # Copy the confd binary from Build #1
-COPY --from=confd /go/bin/confd /usr/local/bin/confd
+COPY --from=confd /go/src/github.com/kelseyhightower/confd/bin/confd /usr/local/bin/confd
 
 RUN apt-get update && apt-get -y install \
         db-util \
