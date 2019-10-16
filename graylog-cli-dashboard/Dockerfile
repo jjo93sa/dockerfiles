@@ -17,6 +17,9 @@
 #   The heavy lifting is done by: https://github.com/graylog-labs/cli-dashboard
 #   thanks to them.
 #
+#   npm installation trick from here: https://stackoverflow.com/a/56039905
+#   which resolves issues with root privileges.
+#
 # Usage:
 #   To use the Docker image, either:
 #
