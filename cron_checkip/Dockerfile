@@ -50,7 +50,7 @@
 # Usage:
 #   Usage of this file is very simple, just download the pre-built image for
 #   your architecture from r.j2o.it, which provides lists for all available
-#   images. For example, docker pull r.j2o.it/arm32v6/cron_checkip and jump to
+#   images. For example, docker pull r.j2o.it/cron_checkip and jump to
 #   (3) below.
 #
 #   If you prefer to build your own, for example to set the CRON_SPEC or other
@@ -58,10 +58,9 @@
 #
 #   (1) Create an image of cron/Dockerfile from this repository, or download
 #   the pre-built image for your architecture from: r.j2o.it
-#   (2) Build this file, specifying the correct ARCH and CRON_SPEC:
+#   (2) Build this file, specifying the correct CRON_SPEC:
 #
 #           docker build --build-arg CRON_SPEC="<insert>" \
-#                        --build-arg ARCH="XXXX" \
 #                        -t <your-tag>/cron_checkip .
 #
 #       (which requires a previously built cron/Dockerfile image)
@@ -98,7 +97,7 @@ RUN git clone https://github.com/jjo93sa/ip-utils.git
 FROM $REG/cron:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
-LABEL version "1.1"
+LABEL version "1.2"
 LABEL status "production"
 
 # Add jq and curl, which are needed in the scripts below

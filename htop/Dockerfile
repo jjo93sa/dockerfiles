@@ -17,16 +17,15 @@
 #
 #   (1) Build the image whilst in the htop directory:
 #
-#       docker build -t <repo>/htop .
+#       docker build -t <reg>/htop .
 #
 #   (2) Download a prebuilt image from r.j2o.it:
 #
-#       docker pull r.j2o.it/htop          # for x86-64
-#       docker pull r.j2o.it/arm32v6/htop  # for arm32, Raspberry Pi-compatible
+#       docker pull r.j2o.it/htop
 #
 #   Run the container in the root of the project requiring tags:
 #
-#       docker run -it --pid host --rm --name htop <repo>/htop <params>
+#       docker run -it --pid host --rm --name htop <reg>/htop <params>
 #
 # Maintainer:
 #   James Osborne, dr.j.osborne@gmail.com
@@ -39,7 +38,7 @@ FROM alpine:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "test"
-LABEL version "0.1"
+LABEL version "0.3"
 
 RUN apk --no-cache add \
    htop

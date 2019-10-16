@@ -40,8 +40,8 @@
 #     # located.
 #     COPY ./myawesomescript /usr/local/bin
 #
-#   And that's it! -- no ENTRYPOINT/CMD, nothing about task and no other crontab
-#   stuff.
+#   And that's it! -- no ENTRYPOINT/CMD, nothing about task and no other
+#   crontab stuff.
 #
 # Credits:
 #   Based on https://gist.github.com/andyshinn/3ae01fa13cb64c9d36e7 and
@@ -51,13 +51,13 @@
 # Usage:
 #   Usage is as simple as downloading the latest image of this Docker file from
 #   r.j2o.it/cron, and then using that image in the "FROM" of your own
-#   Dockerfile. If you want to build your own image of this file, there are four
-#   steps:
+#   Dockerfile. If you want to build your own image of this file, there are
+#   four steps:
 #
 #     (1) Build an image from this Dockerfile
 #     (2) Create a task script executing your desired function(s)
-#     (3) Create a Dockerfile for your concrete image, copying any other binaries
-#         or scripts you need for it to work
+#     (3) Create a Dockerfile for your concrete image, copying any other
+#         binaries or scripts you need for it to work
 #     (4) Build your image
 #     (5) Execute your concrete image
 #
@@ -71,7 +71,7 @@ ARG TAG=latest
 FROM alpine:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
-LABEL version "1.0"
+LABEL version "1.1"
 LABEL status "production"
 
 # Install bash

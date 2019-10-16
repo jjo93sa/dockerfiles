@@ -15,20 +15,19 @@
 #
 #   (1) Build the image whilst in the unix2dos directory:
 #
-#       docker build -t <repo>/unix2dos .
+#         docker build  -t <reg>/unix2dos .
 #
 #   Or
 #
 #   (2) Download a prebuilt image from r.j2o.it:
 #
-#       docker pull r.j2o.it/unix2dos          # for x86-64
-#       docker pull r.j2o.it/arm32v6/unix2dos  # for arm32, Rasp Pi-compatible
+#         docker pull r.j2o.it/unix2dos
 #
 #   Then run the container:
 #
-#       docker run --rm --name unix2dos \
+#         docker run --rm --name unix2dos \
 #          --mount type=bind,source=`pwd`,target=/unix2dos/data \
-#          <repo>/unix2dos <params>
+#          <reg>/unix2dos <params>
 #
 # Maintainer:
 #   James Osborne, dr.j.osborne@gmail.com
@@ -43,7 +42,7 @@ FROM $REG/dos2unix:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "work in progress"
-LABEL version "0.1"
+LABEL version "0.2"
 
 WORKDIR /dos2unix/data
 

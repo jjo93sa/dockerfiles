@@ -15,20 +15,19 @@
 #
 #   (1) Build the image whilst in the dos2unix directory:
 #
-#       docker build -t <repo>/dos2unix .
+#       docker build -t <reg>/dos2unix .
 #
 #   Or
 #
 #   (2) Download a prebuilt image from r.j2o.it:
 #
-#       docker pull r.j2o.it/dos2unix          # for x86-64
-#       docker pull r.j2o.it/arm32v6/dos2unix  # for arm32, Rasp Pi-compatible
+#       docker pull r.j2o.it/dos2unix
 #
 #   Then run the container:
 #
 #       docker run --rm --name dos2unix \
 #          --mount type=bind,source=`pwd`,target=/dos2unix/data \
-#          <repo>/dos2unix <params>
+#          <reg>/dos2unix <params>
 #
 # Maintainer:
 #   James Osborne, dr.j.osborne@gmail.com
@@ -41,7 +40,7 @@ FROM alpine:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "work in progress"
-LABEL version "0.1"
+LABEL version "0.2"
 
 RUN apk --no-cache add \
    dos2unix \

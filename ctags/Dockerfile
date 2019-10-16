@@ -15,33 +15,32 @@
 #
 #   (1) Build the image whilst in the ctags directory:
 #
-#       docker build -t <repo>/ctags .
+#       docker build -t <reg>/ctags .
 #
 #   (2) Download a prebuilt image from r.j2o.it:
 #
-#       docker pull r.j2o.it/ctags          # for x86-64
-#       docker pull r.j2o.it/arm32v6/ctags  # for arm32, Raspberry Pi-compatible
+#       docker pull r.j2o.it/ctags
 #
 #   Run the container in the root of the project requiring tags:
 #
 #       docker run -it --mount type=bind,source="$(pwd)",target=/ctags/data \
-#          --rm --name ctags <repo>/ctags <params> .
+#          --rm --name ctags <reg>/ctags <params> .
 #
-#       If the container is run without any parameters, it defaults to showing
-#       the languages supported by this version of ctags: −−list−languages
+#   If the container is run without any parameters, it defaults to showing the
+#   languages supported by this version of ctags: −−list−languages
 #
 # Maintainer:
 #   James Osborne, dr.j.osborne@gmail.com
 #
 # License:
-#   MIT, see LICENSE file in repoistory root.
+#   MIT, see LICENSE file in repository root.
 #
 ARG TAG=latest
 FROM alpine:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "test"
-LABEL version "0.2"
+LABEL version "0.3"
 
 RUN apk --no-cache add ctags
 

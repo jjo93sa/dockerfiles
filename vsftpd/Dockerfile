@@ -19,19 +19,20 @@
 #
 #   (1) Build the image whilst in the vsftpd directory:
 #
-#       docker build -t <repo>/vsftpd .
+#         docker build -t <reg>/vsftpd .
 #
 #   (2) Download a prebuilt image from r.j2o.it:
 #
-#       docker pull r.j2o.it/vsftpd          # for x86-64
-#       docker pull r.j2o.it/arm32v6/vsftpd  # for arm32, Raspberry Pi-compatible
+#         docker pull r.j2o.it/vsftpd
 #
 #   Run the container:
 #
-#       docker run -it -e FTP_USER=james -e FTP_PASS=james -p 21:21 -p 20:20 \
-#          -p 3000-3009:3000-3009 -v <local>:/vsftpd/data <repo>/vsftpd
+#         docker run -it -e FTP_USER=james -e FTP_PASS=james -p 21:21 \
+#            -p 20:20 -p 3000-3009:3000-3009 \
+#            -v <local>:/vsftpd/data <reg>/vsftpd
 #
-#   Changing the FTP_USER and FTP_PASS variables, and the port mappings, to suit your use case.
+#   Changing the FTP_USER and FTP_PASS variables, and the port mappings, to
+#   suit your use case.
 #
 #   There are additional variables that may be used to control FTP PASV mode:
 #
@@ -75,7 +76,7 @@ FROM debian:$SRCT
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "production"
-LABEL version "1.0"
+LABEL version "1.1"
 
 # Copy the confd binary from Build #1
 COPY --from=confd /go/src/github.com/kelseyhightower/confd/bin/confd /usr/local/bin/confd

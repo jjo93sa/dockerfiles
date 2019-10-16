@@ -31,18 +31,17 @@
 #
 #   (1) Build the image whilst in the ctags directory:
 #
-#       docker build -t <repo>/tftpd .
+#         docker build -t <reg>/tftpd .
 #
 #   (2) Download a prebuilt image from r.j2o.it:
 #
-#       docker pull r.j2o.it/tftpd          # for x86-64
-#       docker pull r.j2o.it/arm32v6/tftpd  # for arm32, Raspberry Pi-compatible
+#         docker pull r.j2o.it/tftpd
 #
 #    (3) Run the container, --net host might not be needed, TBC:
 #
 #       docker run -it -p 69:69/udp -p 60005-60010:60005-60010/udp --net host \
-#          -- mount type=bind,source=<some-dir>,target=/tftpd/data \
-#          --rm --name tftpd <repo>/tftpd
+#          --mount type=bind,source=<some-dir>,target=/tftpd/data \
+#          --rm --name tftpd <reg>/tftpd
 #
 # Maintainer:
 #   James Osborne, dr.j.osborne@gmail.com
@@ -56,7 +55,7 @@ FROM alpine:$TAG
 
 # Meta data for the image
 LABEL maintainer="dr.j.osborne@gmail.com"
-LABEL version "0.4"
+LABEL version "0.5"
 LABEL status "Development"
 
 # Install the tftp server

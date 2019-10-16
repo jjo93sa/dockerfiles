@@ -15,21 +15,20 @@
 #
 #   (1) Build the image whilst in the tree directory:
 #
-#       docker build -t <repo>/tree .
+#         docker build -t <reg>/tree .
 #
-#       Alternatively, download a prebuilt image from r.j2o.it. Check this site
-#       for supported images/architectures: https://r.j2o.it
+#       Alternatively, download a prebuilt image from r.j2o.it.
 #
 #   Or
 #
 #   (2) Download a prebuilt image from r.j2o.it:
 #
-#       docker pull r.j2o.it/tree          # for x86-64
-#       docker pull r.j2o.it/arm32v6/tree  # for arm32, Raspberry Pi-compatible
+#         docker pull r.j2o.it/tree
 #
 #   Then run the container:
 #
-#       docker run -it -v `pwd`:/tree/data --rm --name tree <repo>/tree <params>
+#         docker run -it -v `pwd`:/tree/data --rm --name tree \
+#            <repo>/tree <params>
 #
 # Maintainer:
 #   James Osborne, dr.j.osborne@gmail.com
@@ -42,7 +41,7 @@ FROM alpine:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "development"
-LABEL version "0.1"
+LABEL version "0.2"
 
 RUN apk --no-cache add tree
 

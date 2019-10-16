@@ -28,13 +28,12 @@
 #
 #   (2) Download a prebuilt image from r.j2o.it:
 #
-#       docker pull r.j2o.it/graylog-cli-dashboard          # for x86-64
-#       docker pull r.j2o.it/arm32v6/graylog-cli-dashboard  # for arm32, RPi
+#       docker pull r.j2o.it/graylog-cli-dashboard
 #
 #   Then run the container:
 #
 #       docker run --rm --name graylog-cli-dashboard \
-#          <repo>/graylog-cli-dashboard <params>
+#          <reg>/graylog-cli-dashboard <params>
 #
 #   If no parameters are provided, the container defaults to running the --help
 #   switch.
@@ -63,11 +62,10 @@ ENV TZ Etc/UTC
 
 # More timezone stuff
 RUN cp /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-RUN npm config set unsafe-perm true
+
 # Install the module directly from GitHub, -g is global & installs deps
-#RUN npm install graylog-cli-dashboard -g
+RUN npm config set unsafe-perm true
 RUN npm install github:jjo93sa/cli-dashboard -g --loglevel verbose -dd
 
-#COPY screen.js /usr/local/lib/node_modules/graylog-cli-dashboard/lib/
 ENTRYPOINT [ "graylog-dashboard" ]
 CMD [ "--help" ]

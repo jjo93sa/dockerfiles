@@ -13,6 +13,9 @@
 #   Usage is as simple as these three steps:
 #
 #   (1) Build an image from this Dockerfile
+#
+#         docker build -t <reg>/proxy .
+#
 #   (2) Launch a container from the image somthing like this:
 #
 #         docker run -it --rm --name roxy \
@@ -20,7 +23,7 @@
 #           -v /path/to/nginx.htpasswd:/etc/nginx/conf.d/nginx.htpasswd:ro \
 #           -v /path/to/dhparams.pem:/etc/nginx/conf.d/dhparams.pem \
 #           -v /path/to/certs:/etc/letsencrypt:ro
-#           jjo93sa/proxy
+#           <reg>/proxy
 #
 #       Of course, the file locations can be modified in your nginx.conf file.
 #       I'll leave the network aspects up to the reader.
@@ -39,7 +42,7 @@ ARG TAG=alpine
 FROM nginx:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
-LABEL version "0.1"
+LABEL version "0.2"
 LABEL status "development"
 
 # Add the following packages for debugging purposes

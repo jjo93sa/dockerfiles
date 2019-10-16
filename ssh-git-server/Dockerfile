@@ -61,7 +61,7 @@ ARG TAG=latest
 FROM alpine:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
-LABEL version "0.2"
+LABEL version "0.3"
 LABEL status "test"
 
 RUN apk add --no-cache bash \

@@ -19,20 +19,19 @@
 #   (1) Build the image, executing the following in the directory containing
 #       the Dockerfile:
 #
-#         docker build -it <repo>/telnet .
+#         docker build -it <reg>/telnet .
 #
-#       Alternatively, download a pre-built image from r.j2o.it. Check this
-#       site for supported images/architectures: https://r.j2o.it
+#       Alternatively, download a pre-built image from r.j2o.it.
 #
 #   (2) Run the Docker container:
 #
-#         docker run --rm --name telnet -it <repo>/telnet <params>
+#         docker run --rm --name telnet -it <reg>/telnet <params>
 #
 #       Executing the container with no params shows the help text.
 #
 #   (3) Test the container:
 #
-#         docker run --rm --name telnet -it <repo>/telnet \
+#         docker run --rm --name telnet -it <reg>/telnet \
 #           towel.blinkenlights.nl 23
 #
 # Maintainer:
@@ -46,7 +45,7 @@ FROM alpine:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "production"
-LABEL version "1.0"
+LABEL version "1.1"
 
 # Alpine's telnet client is container in the busybox-extras package
 RUN apk --no-cache add busybox-extras

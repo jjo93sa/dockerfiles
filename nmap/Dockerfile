@@ -15,16 +15,15 @@
 #
 #   (1) Build the image whilst in the nmap directory:
 #
-#       docker build -t <repo>/nmap .
+#       docker build -t <reg>/nmap .
 #
 #   (2) Download a prebuilt image from r.j2o.it:
 #
-#       docker pull r.j2o.it/nmap          # for x86-64
-#       docker pull r.j2o.it/arm32v6.nmap  # for arm32, Raspberry Pi-compatible
+#       docker pull r.j2o.it/nmap
 #
 #   Run the container:
 #
-#       docker run -it --net host --rm --name nmap <repo>/nmap <params>
+#       docker run -it --net host --rm --name nmap <reg>/nmap <params>
 #
 #       If the container is run without any parameters, it defaults to showing
 #       the nmap help (nmap -h).
@@ -40,7 +39,7 @@ FROM alpine:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "production"
-LABEL version "1.0"
+LABEL version "1.1"
 
 RUN apk --no-cache add nmap
 

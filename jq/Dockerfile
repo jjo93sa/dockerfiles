@@ -15,16 +15,15 @@
 #
 #   (1) Build the image whilst in the nmap directory:
 #
-#       docker build -t <repo>/jq .
+#       docker build -t <reg>/jq .
 #
 #   (2) Download a prebuilt image from r.j2o.it:
 #
-#       docker pull r.j2o.it/jq          # for x86-64
-#       docker pull r.j2o.it/arm32v6/jq  # for arm32, Raspberry Pi-compatible
+#       docker pull r.j2o.it/jq
 #
 #   Run the container:
 #
-#       docker run -it --rm --name jq <repo>/jq <params>
+#       docker run -it --rm --name jq <reg>/jq <params>
 #
 #   If the container is run without any parameters, it defaults to showing
 #   the jq help (jq -h).
@@ -55,7 +54,7 @@ FROM alpine:$TAG
 
 LABEL maintainer "James Osborne <dr.j.osborne@gmail.com>"
 LABEL status "work in progress"
-LABEL version "0.1"
+LABEL version "0.3"
 
 RUN apk --no-cache add jq
 

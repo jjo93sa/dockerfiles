@@ -29,16 +29,11 @@
 #
 #   (1) Building the image is achieved like this:
 #
-#     docker build --build-arg "ARCH=arm32v6" -t <repo>/glances .
-#
-#   Without the --build-arg parameter the image built defaults for X86-64
-#   processors. Specifying the ARCH in this way allows images for other
-#   architectures to be built (arm32v6 for Raspberry Pis for example).
+#     docker build -t <reg>/glances .
 #
 #   (2) Pulling the image can be achieved like this:
 #
 #     docker pull r.j2o.it/glances
-#     docker pull r.j2o.ir/arm32v6/glances
 #
 #   Running the image goes something like this:
 #
@@ -46,7 +41,7 @@
 #       -v /var/run/docker.sock:/var/run/docker.sock:ro \
 #       --env-file glances.env \
 #       --net host \
-#       --pid host -it r.j2o.it/glances
+#       --pid host -it <reg>/glances
 #
 #   Where we give the docker container read only access to the Docker socket,
 #   the host's PID namespace and the host's network to enable monitoring of the
@@ -63,7 +58,7 @@ ARG TAG=latest
 FROM alpine:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
-LABEL version "0.1"
+LABEL version "0.2"
 LABEL status "development"
 
 # Install python, plus some development tools to build later packages

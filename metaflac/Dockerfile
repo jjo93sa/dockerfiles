@@ -19,18 +19,17 @@
 #
 #   (1) Build the image whilst in the metaflac directory:
 #
-#       docker build -t <repo>/metaflac .
+#       docker build -t <reg>/metaflac .
 #
 #   (2) Download a prebuilt image from r.j2o.it:
 #
-#       docker pull r.j2o.it/metaflac          # for x86-64
-#       docker pull r.j2o.it/arm32v6/metaflac  # for arm32, Rasp. Pi-compatible
+#       docker pull r.j2o.it/metaflac
 #
 #   Run the container:
 #
 #       docker run -it --rm --name metaflac \
 #          --mount type=bind,source=`pwd`,target=/metaflac/data \
-#          <repo>/metaflac <params>
+#          <reg>/metaflac <params>
 #
 #       If the container is run without any parameters, it defaults to showing
 #       the metaflac version information (metaflac --version).
@@ -46,7 +45,7 @@ FROM alpine:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "development"
-LABEL version "0.1"
+LABEL version "0.2"
 
 RUN apk --no-cache add flac
 

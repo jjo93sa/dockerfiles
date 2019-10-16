@@ -23,15 +23,15 @@
 #
 #   (2) Build docker image from within the directory containing this Dockerfile:
 #
-#       docker build -i <repo>/aws-cli .
+#       docker build -i <reg>/aws-cli .
 #
-#       Replacing <repo> with your repository name;
+#       Replacing <reg> with your registry name;
 #
 #   (3) Run Docker container like this:
 #
 #          docker run -it --name aws-cli \
 #               --env-file aws-cli.env   \
-#               <repo>/aws-cli <params>
+#               <reg>/aws-cli <params>
 #
 #       Where <params> is the list ot commands and parameters to pass to the
 #       aws-cli executable. If no <params> are given, executes help
@@ -45,7 +45,7 @@ FROM alpine:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "production"
-LABEL version "1.0"
+LABEL version "1.1"
 
 RUN apk --no-cache add ca-certificates \
                        groff \

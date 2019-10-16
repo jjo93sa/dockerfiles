@@ -15,20 +15,19 @@
 #
 #   (1) Build the image whilst in the mac2unix directory:
 #
-#       docker build -t <repo>/mac2unix .
+#       docker build -t <reg>/mac2unix .
 #
 #   Or
 #
 #   (2) Download a prebuilt image from r.j2o.it:
 #
-#       docker pull r.j2o.it/mac2unix          # for x86-64
-#       docker pull r.j2o.it/arm32v6/mac2unix  # for arm32, Rasp Pi-compatible
+#       docker pull r.j2o.it/mac2unix
 #
 #   Then run the container:
 #
 #       docker run --rm --name mac2unix \
 #          --mount type=bind,source=`pwd`,target=/mac2unix/data \
-#          <repo>/mac2unix <params>
+#          <reg>/mac2unix <params>
 #
 # Maintainer:
 #   James Osborne, dr.j.osborne@gmail.com
@@ -43,7 +42,7 @@ FROM $REG/dos2unix:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "work in progress"
-LABEL version "0.1"
+LABEL version "0.2"
 
 WORKDIR /dos2unix/data
 

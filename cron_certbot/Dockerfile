@@ -3,8 +3,8 @@
 #
 # Description:
 #   Docker file specifying a container to run EFF/Let's Encrypt client in cron
-#   for automated certificate generation and renewal. I based this on the Docker
-#   file found here: https://github.com/pslobo/dockerized-certbot
+#   for automated certificate generation and renewal. I based this on the
+#   Dockerfile found here: https://github.com/pslobo/dockerized-certbot
 #
 #   Support for Intel & ARM builds is provided by the "ARCH" ARG parameter,
 #   which may be set at build time using --build-arg.
@@ -30,8 +30,7 @@
 #     (2) Build this file, specifying the correct repository and cron times:
 #
 #           docker build --build-arg CRON_SPEC="<insert>" \
-#                        --build-arg REPO="XXXX" \
-#                        -t <your-tag>/cron_certbot .
+#                        -t <reg>/cron_certbot .
 #
 #     (3) Run a container from the image built in (2):
 #
@@ -39,7 +38,7 @@
 #                    -e "YOUR_EMAIL=you@mail.og" \
 #                    -e "CERT_DOMAIN=you.org,another.org" \
 #                    -e "STAGING=no" \
-#                     --rm --name cron-certbot <your-tag>/cron-certbot
+#                     --rm --name cron-certbot <reg>/cron-certbot
 #
 # Maintainer:
 #   James Osborne, dr.j.osborne@gmail.com
@@ -59,7 +58,7 @@ ARG TAG=latest
 FROM $REG/cron:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
-LABEL version "0.3"
+LABEL version "0.4"
 LABEL status "test"
 
 WORKDIR /opt/certbot

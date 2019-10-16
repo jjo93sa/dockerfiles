@@ -3,10 +3,10 @@
 # Title:  build-all
 #
 # Description:
-#   Script to create an image for each Dockerfile found in a directory. Will
-#   build Docker images for multiple architectures (configuration-dependent).
-#   Docker for Mac will quite happily build arm32v6 (and I believe other)
-#   images, which are useful for Raspberry Pi deployment.
+#   Script to create an image for each Dockerfile found in a directory. Build
+#   uses an experimental Docker feature, buildx, which allows us to build
+#   multi-platform images, that is images with manifests for multiple
+#   architectures. Script defaults to building arm, arm64 and amd64 images.
 #
 #   Attempts to use GNU parallel (https://www.gnu.org/software/parallel/)
 #   to speed-up the image creation & push to a registry. See the help text by
