@@ -43,17 +43,8 @@
 #   (0) Login to your Docker registry (the one specified with the -r switch);
 #   (1) Place this script in the root of your Dockerfile project;
 #   (2) Execute the script ./build-all with the appropriate options, which are
-#       summarized as:
-#       build-all -h        Print help and exit
-#           -a ARCH   Comma-separated list of architectures to build; default:
-#                     x86-64. Building for foreign architectures is system
-#                     dependent
-#           -b JOBS   Jobs count to use if GNU Parallel is installed; default: 2
-#           -d DIR    Set the Dockerfile search directory to DIR; default: current
-#                     working directory
-#           -r REG    Set the upstream registry to REG; default: rw.j2o.it
-#           -t TAG    Set the tag to apply to new images; default: latest
-#       Two environment variables are used to control the docker build command:
+#       described below. In addition, two environment variables are used to
+#       control the docker build command:
 #       NO_CACHE - which is used to set the --no-cache switch &
 #       QUIET - which is used to set the -q switch
 #   (3) Check the build-errors.txt file for any problems during the build.
@@ -71,7 +62,6 @@ set -o pipefail
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
 ERROR_FILE="$(pwd)/build-errors.txt"
-
 
 function box
 {
@@ -114,14 +104,17 @@ Synopsis:
 build-all [-h] -a ARCH1,ARCH2 -b JOBS -d DIR -r REGISTRY -t TAG
 
 build-all -h        Print this help message and exit
-          -a ARCH   Comma-separated list of architectures to build; default:
-                    x86-64. Building for foreign architectures is system
-                    dependent
-          -b JOBS   Jobs count to use if GNU Parallel is installed; default: 2
-          -d DIR    Set the Dockerfile search directory to DIR; default: current
-                    working directory
-          -r REG    Set the upstream registry to REG; default: rw.j2o.it
-          -t TAG    Set the tag to apply to new images; default: latest
+          -a ARCH   Comma-separated list of platforms to build
+                    Docker buildx is an experimental feature
+                    default: linux/arm,linux/arm64,linux/amd64
+          -b JOBS   Jobs count to use if GNU Parallel is installed
+                    default: 2
+          -d DIR    Set the Dockerfile search directory to DIR
+                    default: current working directory
+          -r REG    Set the upstream registry to REG
+                    default: rw.j2o.it
+          -t TAG    Set the tag to apply to new images
+                    default: latest
 
 End-of-message
 }
@@ -143,8 +136,10 @@ function build_push()
     NO_CACHE=${NO_CACHE+--no-cache}
 
     # Build & push the image. buildx will build multiplatform images.
-    echo "Building $BLD_STR with context $BLD_DIR"
-    docker buildx build --platform ${2} -t ${BLD_STR} --push ${BLD_DIR} \
+    echo "Building $BLD_STR with context $5"
+    docker buildx build --pull --platform "${2}" \
+        -t "${BLD_STR}" \
+        --push "${5}" \
         || return 1
 
     success  "SUCCESS: built & pushed $BLD_STR"
@@ -153,24 +148,23 @@ function build_push()
 function process_files()
 {
     # Parameters
-    # $1 - File path from find
-    # $2 - Registry
-    # $3 - Arch list (buildx --platform)
-    # $4 - Tag
+    # $1 - Registry
+    # $2 - Arch list (buildx --platform)
+    # $3 - Tag
+    # $4 - File path from find
 
-    # $1 has format: path/to/wget/Dockerfile
-    local BUILD_DIR=${1%\/Dockerfile} # Gives us: path/to/wget
-    local IMAGE=${BUILD_DIR##*\/} # Gives us: wget
-    local ARCH=$3
+    # $4 has format: path/to/wget/Dockerfile
+    local BUILD_DIR="${4%\/Dockerfile}" # Gives us: path/to/wget
+    local IMAGE="${BUILD_DIR##*\/}" # Gives us: wget
 
     # Subshell
     {
-        info  "Starting build for: $IMAGE"
+        info "Starting build for: $IMAGE"
 
-        # build_push $REPO $IMAGE $TAG $BUILD_DIR
-        $SCRIPT build_push "${2}" "${ARCH}" "${IMAGE}" "$4" "${BUILD_DIR}"
+        # build_push $REG $PLATFORM $IMAGE $TAG $BUILD_DIR
+        $SCRIPT build_push "${1}" "${2}" "${IMAGE}" "$3" "${BUILD_DIR}"
     } || {
-        fail "FAIL: Building ${IMAGE}:${4} FAILED with error $?" | tee -a $ERROR_FILE
+        fail "FAIL: Building ${IMAGE}:${3} FAILED with error $?" | tee -a $ERROR_FILE
     }
     echo
 }
@@ -218,7 +212,7 @@ main()
 
     # Use the command line params, or the following defaults:
     DCF_DIR="${DCF_DIR:-$(pwd)}"
-    IMG_ARC="${IMG_ARC:-linux/arm,linux/amd64}"
+    IMG_ARC="${IMG_ARC:-linux/arm,linux/arm64,linux/amd64}"
     OUR_REG="${OUR_REG:-rw.j2o.it}"
     MAX_JOB="${MAX_JOB:-1}"
     OUR_TAG="${OUR_TAG:-latest}"
@@ -236,25 +230,25 @@ main()
     then
         # This is where we call parallel with the array list:
         # Type 1 & 2:
-        parallel -u -j "${MAX_JOB}" $SCRIPT process_files "{1}" \
-            "$OUR_REG" "${IMG_ARC}" "$OUR_TAG" ::: "${DCF_LIST[@]}"
+        parallel -u -j "${MAX_JOB}" $SCRIPT process_files "${OUR_REG}" \
+            "${IMG_ARC}" "$OUR_TAG" "{1}" ::: "${DCF_LIST[@]}"
         # Type 3:
-        parallel -u -j "${MAX_JOB}" $SCRIPT process_files "{1}" \
-            "$OUR_REG" "${IMG_ARC}" "$OUR_TAG" ::: "${DEP_LIST[@]}"
+        parallel -u -j "${MAX_JOB}" $SCRIPT process_files "${OUR_REG}" \
+            "${IMG_ARC}" "$OUR_TAG" "{1}" ::: "${DEP_LIST[@]}"
     else
         # Parallel isn't installed, so let's perform the build(s) serially
         # Process the type 1 and type 2 Dockerfiles, that is those that can
         # be built without dependencies on others
         for DCF in "${DCF_LIST[@]}"
         do
-            $SCRIPT process_files "$DCF" "$OUR_REG" "$IMG_ARC" "$OUR_TAG"
+            $SCRIPT process_files "$OUR_REG" "$IMG_ARC" "$OUR_TAG" "$DCF"
         done
 
         # Process the type 3 Dockerfiles, that is those Dockerfiles that
         # depend on type 1 or type 2 Dockerfiles
         for DEP in "${DEP_LIST[@]}"
         do
-            $SCRIPT process_files "$DEP" "$OUR_REG" "$IMG_ARC" "$OUR_TAG"
+            $SCRIPT process_files "$OUR_REG" "$IMG_ARC" "$OUR_TAG" "$DEP"
         done
     fi
 
