@@ -3,8 +3,8 @@
 # Title:  build-all
 #
 # Description:
-#   Script to create an image for each Dockerfile found in a directory. Build
-#   uses an experimental Docker feature, buildx, which allows us to build
+#   Create an image for each Dockerfile found in a directory. build-all uses
+#   an experimental Docker feature, buildx, which allows us to build
 #   multi-platform images, that is images with manifests for multiple
 #   architectures. Script defaults to building arm, arm64 and amd64 images.
 #
@@ -13,7 +13,7 @@
 #   running ./build-all -h.
 #
 #   We define three types of Dockerfile to build:
-#     Type 1 - Sandard Docker images, which may be used standalone or as the
+#     Type 1 - Standard Docker images, which may be used standalone or as the
 #              basis for another image.
 #     Type 2 - Base images, which are those that may not be used standalone,
 #              but are intended to be used as the base of another Docker image
@@ -101,16 +101,18 @@ cat <<End-of-message
 build-all - build all Docker images described by Dockerfiles in a directory
 
 Synopsis:
-build-all [-h] -a ARCH1,ARCH2 -b JOBS -d DIR -r REGISTRY -t TAG
+build-all [-h] -a ARCH1,ARCH2 -b JOBS -d DIR -m REGISTRY -r REGISTRY -t TAG
 
 build-all -h        Print this help message and exit
           -a ARCH   Comma-separated list of platforms to build
                     Docker buildx is an experimental feature
                     default: linux/arm,linux/arm64,linux/amd64
           -b JOBS   Jobs count to use if GNU Parallel is installed
-                    default: 2
+                    default: 1
           -d DIR    Set the Dockerfile search directory to DIR
                     default: current working directory
+          -m REG    Only build Docker images missing from REG.
+                    default r.j2o.it
           -r REG    Set the upstream registry to REG
                     default: rw.j2o.it
           -t TAG    Set the tag to apply to new images
@@ -171,8 +173,10 @@ function process_files()
 
 main()
 {
+    EXISTING=""
+
     # Let's process the command line flags
-    while getopts ":a:b:d:hr:t:" opt; do
+    while getopts ":a:b:d:hm:r:t:" opt; do
         case $opt in
             a)
                 # This is the comma-separated list of architectures
@@ -190,6 +194,12 @@ main()
                 # Display help and exit
                 help
                 exit 1
+                ;;
+            m)
+                # Only build docker images missing in the registry (cf dir
+                # specified with -d)
+                export EXISTING=$(mktemp)
+                CMP_REG="${OPTARG}"
                 ;;
             r)
                 # This is the registry to use for the push
@@ -214,42 +224,75 @@ main()
     DCF_DIR="${DCF_DIR:-$(pwd)}"
     IMG_ARC="${IMG_ARC:-linux/arm,linux/arm64,linux/amd64}"
     OUR_REG="${OUR_REG:-rw.j2o.it}"
+    CMP_REG="${CMP_REG:-r.j2o.it}"
     MAX_JOB="${MAX_JOB:-1}"
     OUR_TAG="${OUR_TAG:-latest}"
 
+    if [ -n "$EXISTING" ]
+    then
+        info "Getting repository list for ${CMP_REG}"
+
+        # -m set; use r.j3ss.co/reg to list the existing docker repositories
+        docker run r.j3ss.co/reg ls "${CMP_REG}" 2>/dev/null |
+            awk 'NR>2 {print $1}' > "${EXISTING}"
+    fi
+
     IFS=$'\n'
-    # Generate a list of Dockerfiles (type 1 and 2)
-    DCF_LIST=( $(find -L ${DCF_DIR} -iname "*Dockerfile" | grep -vf ${DCF_DIR}/subordinate | sort -d) )
-    # Generate a list of Dockerfiles (type 3)
-    DEP_LIST=( $(find -L ${DCF_DIR} -iname "*Dockerfile" | grep -f ${DCF_DIR}/subordinate  | sort -d) )
+    # Generate a list of Dockerfiles (type 1 and 2):
+    # 1) List all Dockerfiles in the specified directory;
+    # 2) From this list we remove the subordinate group;
+    # 3) Then we remove (if -m given) the existing containers in registry.
+    # NB this array can be unbound!
+    DCF_LIST=(  $(find -L ${DCF_DIR} -iname "*Dockerfile" |
+        grep -vf ${DCF_DIR}/subordinate |
+        if [ -e "$EXISTING" ]; then grep -vf "${EXISTING}" || true; else cat; fi ) )
+
+    # Generate a list of Dockerfiles (type 3):
+    # 1) List all Dockerfiles in the specified directory;
+    # 2) From this list we select only the subordinate group present;
+    # 3) Then we remove (if -m given) the existing containers in registry.
+    # NB this array can be unbound!
+    DEP_LIST=( $(find -L ${DCF_DIR} -iname "*Dockerfile" |
+        grep -f ${DCF_DIR}/subordinate  |
+        if [ -e "$EXISTING" ]; then grep -vf "${EXISTING}" || true; else cat; fi ) )
     unset IFS
 
     #IFS=',' read -ra ARC_LIST <<< "$IMG_ARC"
 
-    if [ -x "$(command -v parallel)" ]
+    # Type 1 & 2, checking for unbound array:
+    if [[ ! -z "${DCF_LIST[@]:+${DCF_LIST[@]}}" ]]
     then
-        # This is where we call parallel with the array list:
-        # Type 1 & 2:
-        parallel -u -j "${MAX_JOB}" $SCRIPT process_files "${OUR_REG}" \
-            "${IMG_ARC}" "$OUR_TAG" "{1}" ::: "${DCF_LIST[@]}"
-        # Type 3:
-        parallel -u -j "${MAX_JOB}" $SCRIPT process_files "${OUR_REG}" \
-            "${IMG_ARC}" "$OUR_TAG" "{1}" ::: "${DEP_LIST[@]}"
+        info "Building ${#DCF_LIST[@]} type 1 and 2 images"
+        if [ -x "$(command -v parallel)" ]
+        then
+            parallel -u -j "${MAX_JOB}" $SCRIPT process_files "${OUR_REG}" \
+                "${IMG_ARC}" "$OUR_TAG" "{1}" ::: "${DCF_LIST[@]}"
+        else
+            for DCF in "${DCF_LIST[@]}"
+            do
+                $SCRIPT process_files "$OUR_REG" "$IMG_ARC" "$OUR_TAG" "$DCF"
+            done
+        fi
     else
-        # Parallel isn't installed, so let's perform the build(s) serially
-        # Process the type 1 and type 2 Dockerfiles, that is those that can
-        # be built without dependencies on others
-        for DCF in "${DCF_LIST[@]}"
-        do
-            $SCRIPT process_files "$OUR_REG" "$IMG_ARC" "$OUR_TAG" "$DCF"
-        done
+        info "No type 1 or 2 images to build"
+    fi
 
-        # Process the type 3 Dockerfiles, that is those Dockerfiles that
-        # depend on type 1 or type 2 Dockerfiles
-        for DEP in "${DEP_LIST[@]}"
-        do
-            $SCRIPT process_files "$OUR_REG" "$IMG_ARC" "$OUR_TAG" "$DEP"
-        done
+    # Type 3, checking for unbound array:
+    if [[ ! -z "${DEP_LIST[@]:+"${DEP_LIST[@]}"}" ]]
+    then
+        info "Building ${#DEP_LIST[@]} type 3 images"
+        if [ -x "$(command -v parallel)" ]
+        then
+            parallel -u -j "${MAX_JOB}" $SCRIPT process_files "${OUR_REG}" \
+                "${IMG_ARC}" "$OUR_TAG" "{1}" ::: "${DEP_LIST[@]}"
+        else
+            for DEP in "${DEP_LIST[@]:+${DEP_LIST[@]}}"
+            do
+                $SCRIPT process_files "$OUR_REG" "$IMG_ARC" "$OUR_TAG" "$DEP"
+            done
+        fi
+    else
+            info "No type 3 images to build"
     fi
 
     exit 0
