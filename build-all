@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Title:  build-all
 #
@@ -7,6 +7,9 @@
 #   an experimental Docker feature, buildx, which allows us to build
 #   multi-platform images, that is images with manifests for multiple
 #   architectures. Script defaults to building arm, arm64 and amd64 images.
+#
+#   Docker buildx requires some configuration before it can be used. I followed
+#   the guide here: https://engineering.docker.com/2019/04/multi-arch-images/
 #
 #   Attempts to use GNU parallel (https://www.gnu.org/software/parallel/)
 #   to speed-up the image creation & push to a registry. See the help text by
@@ -63,13 +66,17 @@ SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[
 
 ERROR_FILE="$(pwd)/build-errors.txt"
 
+# Create a file with single newline for later
+EXISTING=$(mktemp) && touch "${EXISTING}"
+CMP_REG=
+
 function box
 {
     t="xx$1xx"
     c=${2:-=}
-    echo ${t//?/$c}
+    echo "${t//?/$c}"
     echo "$c $1 $c"
-    echo ${t//?/$c}
+    echo "${t//?/$c}"
 }
 
 function info
@@ -98,10 +105,12 @@ function help
 {
 cat <<End-of-message
 
-build-all - build all Docker images described by Dockerfiles in a directory
+build-all - build all Docker images described by Dockerfiles in a directory.
+Can also be used to build and push single repositories: build-all build_push.
 
 Synopsis:
 build-all [-h] -a ARCH1,ARCH2 -b JOBS -d DIR -m REGISTRY -r REGISTRY -t TAG
+build-all build_push REG ARCH1,ARCG2,.. IMAGE TAG DIR
 
 build-all -h        Print this help message and exit
           -a ARCH   Comma-separated list of platforms to build
@@ -130,7 +139,6 @@ function build_push()
     # $4 - Tag
     # $5 - build directory
 
-    local BLD_DIR=$5
     local BLD_STR="$1/$3:$4"
 
     # Some environment variable from the host to control how we build
@@ -153,28 +161,26 @@ function process_files()
     # $1 - Registry
     # $2 - Arch list (buildx --platform)
     # $3 - Tag
-    # $4 - File path from find
+    # $4 - Repository name (e.g. wget)
+    # $5 - Current path
 
-    # $4 has format: path/to/wget/Dockerfile
-    local BUILD_DIR="${4%\/Dockerfile}" # Gives us: path/to/wget
-    local IMAGE="${BUILD_DIR##*\/}" # Gives us: wget
+    local BUILD_DIR="${5}/${4}"
 
     # Subshell
     {
-        info "Starting build for: $IMAGE"
+        info "Starting build for: $4"
 
         # build_push $REG $PLATFORM $IMAGE $TAG $BUILD_DIR
-        $SCRIPT build_push "${1}" "${2}" "${IMAGE}" "$3" "${BUILD_DIR}"
+        $SCRIPT build_push "${1}" "${2}" "${4}" "$3" "${BUILD_DIR}"
     } || {
-        fail "FAIL: Building ${IMAGE}:${3} FAILED with error $?" | tee -a $ERROR_FILE
+        fail "FAIL: Building ${IMAGE}:${3} FAILED with error $?" |
+            tee -a "${ERROR_FILE}"
     }
     echo
 }
 
 main()
 {
-    EXISTING=""
-
     # Let's process the command line flags
     while getopts ":a:b:d:hm:r:t:" opt; do
         case $opt in
@@ -198,7 +204,6 @@ main()
             m)
                 # Only build docker images missing in the registry (cf dir
                 # specified with -d)
-                export EXISTING=$(mktemp)
                 CMP_REG="${OPTARG}"
                 ;;
             r)
@@ -224,11 +229,10 @@ main()
     DCF_DIR="${DCF_DIR:-$(pwd)}"
     IMG_ARC="${IMG_ARC:-linux/arm,linux/arm64,linux/amd64}"
     OUR_REG="${OUR_REG:-rw.j2o.it}"
-    CMP_REG="${CMP_REG:-r.j2o.it}"
     MAX_JOB="${MAX_JOB:-1}"
     OUR_TAG="${OUR_TAG:-latest}"
 
-    if [ -n "$EXISTING" ]
+    if [ -n "$CMP_REG" ]
     then
         info "Getting repository list for ${CMP_REG}"
 
@@ -237,58 +241,86 @@ main()
             awk 'NR>2 {print $1}' > "${EXISTING}"
     fi
 
-    IFS=$'\n'
-    # Generate a list of Dockerfiles (type 1 and 2):
-    # 1) List all Dockerfiles in the specified directory;
-    # 2) From this list we remove the subordinate group;
-    # 3) Then we remove (if -m given) the existing containers in registry.
-    # NB this array can be unbound!
-    DCF_LIST=(  $(find -L ${DCF_DIR} -iname "*Dockerfile" |
-        grep -vf ${DCF_DIR}/subordinate |
-        if [ -e "$EXISTING" ]; then grep -vf "${EXISTING}" || true; else cat; fi ) )
+    # Get a list of all the repositories we might need to build
+    REPO_LIST=$( find -L "${DCF_DIR}" -iname "*Dockerfile" -exec dirname {} \; |
+        sed 's|^.*/||' )
 
-    # Generate a list of Dockerfiles (type 3):
-    # 1) List all Dockerfiles in the specified directory;
-    # 2) From this list we select only the subordinate group present;
-    # 3) Then we remove (if -m given) the existing containers in registry.
-    # NB this array can be unbound!
-    DEP_LIST=( $(find -L ${DCF_DIR} -iname "*Dockerfile" |
-        grep -f ${DCF_DIR}/subordinate  |
-        if [ -e "$EXISTING" ]; then grep -vf "${EXISTING}" || true; else cat; fi ) )
-    unset IFS
+    # Generate a list of Dockerfiles (Type 1 & 2):
+    # 1) Take local Dockerfiles list;
+    # 2) Combine with registry Docker images list (no-op if -m not specified)
+    #    AND the list of Type 3 files (in subordinate file);
+    # 3) Sort the combined list;
+    # 4) Select only non-duplicated lines, that is Type 1 & 2 Dockerfiles that
+    #    exist locally but not in the registry (we ignore case where registry
+    #    might contain images without local Dockerfile). Type 3 files are
+    #    filtered since they are duplicated by their presence in the local list
+    #    AND the subordinate file;
+    # This is a mess, but I can't find an easier way that avoids the vagaries
+    # of command chaining, grep, empty files and conditional execution.
+    T12_LIST=()
+    while IFS='' read -r line
+    do
+        T12_LIST+=("$line")
+    done < <( echo "${REPO_LIST}" |
+        cat "${DCF_DIR}"/subordinate "${EXISTING}" - |
+        sort |
+        uniq -u )
 
-    #IFS=',' read -ra ARC_LIST <<< "$IMG_ARC"
+    # Generate a list of Dockerfiles (Type 3):
+    # 1) Take local Dockerfiles list;
+    # 2) Combine with registry Docker images list (no-op if -m not specified);
+    # 3) Sort the combined list;
+    # 4) Select only non-duplicated lines, that is Dockerfiles that exist
+    #    locally but not in the registry (we ignore case where registry might
+    #    contain images without local Dockerfile);
+    # 5) Select only Type 3 Dockerfiles missing from the registry by matching
+    #    with the subordinate file list.
+    # This is a mess, but I can't find an easier way that avoids the vagaries
+    # of command chaining, grep, empty files and conditional execution.
+    T_3_LIST=()
+    while IFS='' read -r line
+    do
+        T_3_LIST+=("$line")
+    done < <( echo "${REPO_LIST}" |
+        cat  "${EXISTING}" - |
+        sort |
+        uniq -u |
+        grep -f "${DCF_DIR}"/subordinate )
 
-    # Type 1 & 2, checking for unbound array:
-    if [[ ! -z "${DCF_LIST[@]:+${DCF_LIST[@]}}" ]]
+    # Build any Type 1 & 2 Dockerfiles
+    if [ ${#T12_LIST[@]} -gt 0 ]
     then
-        info "Building ${#DCF_LIST[@]} type 1 and 2 images"
+        info "Building ${#T12_LIST[@]} type 1 and 2 images"
         if [ -x "$(command -v parallel)" ]
         then
-            parallel -u -j "${MAX_JOB}" $SCRIPT process_files "${OUR_REG}" \
-                "${IMG_ARC}" "$OUR_TAG" "{1}" ::: "${DCF_LIST[@]}"
+            parallel -u -j "${MAX_JOB}" "${SCRIPT}" process_files "${OUR_REG}" \
+                "${IMG_ARC}" "${OUR_TAG}" "{1}" "${DCF_DIR}" \
+                ::: "${T12_LIST[@]}"
         else
-            for DCF in "${DCF_LIST[@]}"
+            for DCF in "${T12_LIST[@]}"
             do
-                $SCRIPT process_files "$OUR_REG" "$IMG_ARC" "$OUR_TAG" "$DCF"
+                "${SCRIPT}" process_files "${OUR_REG}" "${IMG_ARC}" \
+                    "${OUR_TAG}" "${DCF}" "${DCF_DIR}"
             done
         fi
     else
         info "No type 1 or 2 images to build"
     fi
 
-    # Type 3, checking for unbound array:
-    if [[ ! -z "${DEP_LIST[@]:+"${DEP_LIST[@]}"}" ]]
+    # Build any Type 3 Dockerfiles:
+    if [ ${#T_3_LIST[@]} -gt 0 ]
     then
-        info "Building ${#DEP_LIST[@]} type 3 images"
+        info "Building ${#T_3_LIST[@]} type 3 images"
         if [ -x "$(command -v parallel)" ]
         then
-            parallel -u -j "${MAX_JOB}" $SCRIPT process_files "${OUR_REG}" \
-                "${IMG_ARC}" "$OUR_TAG" "{1}" ::: "${DEP_LIST[@]}"
+            parallel -u -j "${MAX_JOB}" "${SCRIPT}" process_files "${OUR_REG}" \
+                "${IMG_ARC}" "${OUR_TAG}" "{1}"  "${DCF_DIR}" \
+                ::: "${T_3_LIST[@]}"
         else
-            for DEP in "${DEP_LIST[@]:+${DEP_LIST[@]}}"
+            for DCF in "${T_3_LIST[@]}"
             do
-                $SCRIPT process_files "$OUR_REG" "$IMG_ARC" "$OUR_TAG" "$DEP"
+                "${SCRIPT}" process_files "${OUR_REG}" "${IMG_ARC}" \
+                    "${OUR_TAG}" "${DCF}" "${DCF_DIR}"
             done
         fi
     else
