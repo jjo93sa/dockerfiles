@@ -39,14 +39,19 @@
 #
 # License:
 #   MIT, see LICENSE file in repoistory root.
-ARG TAG=latest
-FROM alpine:$TAG
+
+ARG TAG=bullseye-slim
+FROM debian:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "work in progress"
-LABEL version "0.1"
+LABEL version "0.2"
 
-RUN apk --no-cache add shellcheck --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community
+RUN apt-get update && apt-get install -y \
+            file \
+            shellcheck \
+            --no-install-recommends \
+            && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /shellcheck/data
 
