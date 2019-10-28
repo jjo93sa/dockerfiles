@@ -64,11 +64,16 @@ set -o pipefail
 # Get our path & name
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
+# Error file, zero out on launch
 ERROR_FILE="$(pwd)/build-errors.txt"
+echo -n > "$ERROR_FILE"
 
-# Create a file with single newline for later
+# Create a file for existing repository list
 EXISTING=$(mktemp) && touch "${EXISTING}"
+
+# Declare these variables (because we have set -u)
 CMP_REG=
+REP_LST=
 
 function box
 {
@@ -109,8 +114,8 @@ build-all - build all Docker images described by Dockerfiles in a directory.
 Can also be used to build and push single repositories: build-all build_push.
 
 Synopsis:
-build-all [-h] -a ARCH1,ARCH2 -b JOBS -d DIR -m REGISTRY -r REGISTRY -t TAG
-build-all build_push REG ARCH1,ARCG2,.. IMAGE TAG DIR
+build-all [-h] -a ARCH1,ARCH2 -b JOBS -d DIR -m REG -r REPO,... -p REG -t TAG
+build-all build_push REG ARCH1,ARCH2,.. IMAGE TAG DIR
 
 build-all -h        Print this help message and exit
           -a ARCH   Comma-separated list of platforms to build
@@ -121,8 +126,11 @@ build-all -h        Print this help message and exit
           -d DIR    Set the Dockerfile search directory to DIR
                     default: current working directory
           -m REG    Only build Docker images missing from REG.
-                    default r.j2o.it
-          -r REG    Set the upstream registry to REG
+                    default: r.j2o.it
+          -r R1,R2  Define which repositories in DIR to build
+                    default: none (DIR is searched for all Dockerfiles)
+                    implies: -m not set
+          -p REG    Set the upstream/push registry to REG
                     default: rw.j2o.it
           -t TAG    Set the tag to apply to new images
                     default: latest
@@ -145,14 +153,19 @@ function build_push()
     QUIET=${QUIET+-q}
     NO_CACHE=${NO_CACHE+--no-cache}
 
+    # docker buildx can throw errors. We don't want to exit this script if it
+    # does, preferring to build the other (independent) containers
+    set +e
+
     # Build & push the image. buildx will build multiplatform images.
     echo "Building $BLD_STR with context $5"
     docker buildx build --pull --platform "${2}" \
         -t "${BLD_STR}" \
         --push "${5}" \
-        || return 1
+        || { set -e; return 1; }
+    set -e
 
-    success  "SUCCESS: built & pushed $BLD_STR"
+    success  "SUCCESS: built & pushed $BLD_STR $-"
 }
 
 function process_files()
@@ -166,23 +179,25 @@ function process_files()
 
     local BUILD_DIR="${5}/${4}"
 
-    # Subshell
+    # Codeblock
     {
+        # We don't want the script to abort if the build fails
         info "Starting build for: $4"
 
         # build_push $REG $PLATFORM $IMAGE $TAG $BUILD_DIR
         $SCRIPT build_push "${1}" "${2}" "${4}" "$3" "${BUILD_DIR}"
     } || {
-        fail "FAIL: Building ${IMAGE}:${3} FAILED with error $?" |
+            fail "FAIL: Building ${4}:${3} FAILED with error $?" |
             tee -a "${ERROR_FILE}"
     }
+
     echo
 }
 
 main()
 {
     # Let's process the command line flags
-    while getopts ":a:b:d:hm:r:t:" opt; do
+    while getopts ":a:b:d:hm:p:r:t:" opt; do
         case $opt in
             a)
                 # This is the comma-separated list of architectures
@@ -207,6 +222,13 @@ main()
                 CMP_REG="${OPTARG}"
                 ;;
             r)
+                # This is the list of repositories to build
+                REP_LST="${OPTARG}"
+
+                # Negate -m option, -m and -r are exclusive
+                CMP_REG=
+                ;;
+            p)
                 # This is the registry to use for the push
                 OUR_REG="${OPTARG}"
                 ;;
@@ -241,9 +263,24 @@ main()
             awk 'NR>2 {print $1}' > "${EXISTING}"
     fi
 
-    # Get a list of all the repositories we might need to build
-    REPO_LIST=$( find -L "${DCF_DIR}" -iname "*Dockerfile" -exec dirname {} \; |
-        sed 's|^.*/||' )
+    # Now we need to get the list of repositories to build. This is either in
+    # $REP_LIST (if -r switch used) or we search DCF_DIR for all Dockerfiles
+    if [ -n "$REP_LST" ]
+    then
+        # -r repository list specified
+        IFS=',' read -a REPO_LIST <<< "$REP_LST"
+    else
+        # Search for all Dockerfiles in directory:
+        # Munge the names to get repository list
+        # Combine it with the repository list from -m REG
+        # Sort and filter unique repositories, i.e. those not already in REG
+        # EXISTING is empty so has no impact if -m not set on CMD line
+        REPO_LIST=$( find -L "${DCF_DIR}" -iname "*Dockerfile" -exec dirname {} \; |
+        sed 's|^.*/||' |
+        cat "${EXISTING}" - |
+        sort |
+        uniq -u )
+    fi
 
     # Generate a list of Dockerfiles (Type 1 & 2):
     # 1) Take local Dockerfiles list;
@@ -258,13 +295,14 @@ main()
     # This is a mess, but I can't find an easier way that avoids the vagaries
     # of command chaining, grep, empty files and conditional execution.
     T12_LIST=()
-    while IFS='' read -r line
-    do
-        T12_LIST+=("$line")
-    done < <( echo "${REPO_LIST}" |
-        cat "${DCF_DIR}"/subordinate "${EXISTING}" - |
-        sort |
-        uniq -u )
+    T12_LIST=( $( for i in "${REPO_LIST[@]}"; do echo "$i"; done | grep -vf "${DCF_DIR}"/subordinate ) )
+    #while IFS='' read -r line
+    #do
+    #    T12_LIST+=("$line")
+    #done < <( echo "${REPO_LIST}" |
+    #    cat "${DCF_DIR}"/subordinate "${EXISTING}" - |
+    #    sort |
+    #    uniq -u )
 
     # Generate a list of Dockerfiles (Type 3):
     # 1) Take local Dockerfiles list;
@@ -278,20 +316,21 @@ main()
     # This is a mess, but I can't find an easier way that avoids the vagaries
     # of command chaining, grep, empty files and conditional execution.
     T_3_LIST=()
-    while IFS='' read -r line
-    do
-        T_3_LIST+=("$line")
-    done < <( echo "${REPO_LIST}" |
-        cat  "${EXISTING}" - |
-        sort |
-        uniq -u |
-        grep -f "${DCF_DIR}"/subordinate )
+    T_3_LIST=( $(for i in "${REPO_LIST[@]}"; do echo "$i"; done | grep -f "${DCF_DIR}"/subordinate || true) )
+    #while IFS='' read -r line
+    #do
+    #    T_3_LIST+=("$line")
+    #done < <( echo "${REPO_LIST}" |
+    #    cat  "${EXISTING}" - |
+    #    sort |
+    #    uniq -u |
+    #    grep -f "${DCF_DIR}"/subordinate )
 
     # Build any Type 1 & 2 Dockerfiles
     if [ ${#T12_LIST[@]} -gt 0 ]
     then
         info "Building ${#T12_LIST[@]} type 1 and 2 images"
-        if [ -x "$(command -v parallel)" ]
+        if [ -x "$(command -v parallel)" ] && [ "${MAX_JOB}" -gt 1 ]
         then
             parallel -u -j "${MAX_JOB}" "${SCRIPT}" process_files "${OUR_REG}" \
                 "${IMG_ARC}" "${OUR_TAG}" "{1}" "${DCF_DIR}" \
@@ -311,7 +350,7 @@ main()
     if [ ${#T_3_LIST[@]} -gt 0 ]
     then
         info "Building ${#T_3_LIST[@]} type 3 images"
-        if [ -x "$(command -v parallel)" ]
+        if [ -x "$(command -v parallel)" ] && [ "${MAX_JOB}" -gt 1 ]
         then
             parallel -u -j "${MAX_JOB}" "${SCRIPT}" process_files "${OUR_REG}" \
                 "${IMG_ARC}" "${OUR_TAG}" "{1}"  "${DCF_DIR}" \
@@ -338,5 +377,3 @@ else
     # We've been called without a function name, so execute main
     main "$@"
 fi
-
-
