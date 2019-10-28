@@ -43,7 +43,7 @@
 # Usage:
 #   Usage of this file is very simple:
 #
-#   (0) Login to your Docker registry (the one specified with the -r switch);
+#   (0) Login to your Docker registry (the one specified with the -p switch);
 #   (1) Place this script in the root of your Dockerfile project;
 #   (2) Execute the script ./build-all with the appropriate options, which are
 #       described below. In addition, two environment variables are used to
@@ -111,11 +111,23 @@ function help
 cat <<End-of-message
 
 build-all - build all Docker images described by Dockerfiles in a directory.
-Can also be used to build and push single repositories: build-all build_push.
+Can also be used to build and push a subset of repositories.
 
 Synopsis:
-build-all [-h] -a ARCH1,ARCH2 -b JOBS -d DIR -m REG -r REPO,... -p REG -t TAG
-build-all build_push REG ARCH1,ARCH2,.. IMAGE TAG DIR
+Build all Dockerfiles in a directory:
+    build-all [-a ARCH1,ARCH2] [-b JOBS] [-d DIR] [-p REG] [-t TAG]
+
+Build all Dockerfiles in a dir but not present in a registry, use -m flag:
+    build-all -m REG [-a ARCH1,ARCH2] [-b JOBS] [-d DIR] [-p REG] [-t TAG]
+
+Build specifc Dockerfiles, use -r flag and csv list:
+    build-all -r REP,.. [-a ARCH1,ARCH2] [-b JOBS] [-d DIR] [-p REG] [-t TAG]
+
+Help:
+    build-all -h
+
+A single repository might also be built thus:
+    build-all build_push REG ARCH1,ARCH2,.. IMAGE TAG DIR
 
 build-all -h        Print this help message and exit
           -a ARCH   Comma-separated list of platforms to build
