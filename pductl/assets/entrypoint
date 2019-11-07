@@ -21,6 +21,9 @@
 set -eu
 set -o pipefail
 
+: "${PDU_IP:?IP address of PDU must be set in PDU_IP}"
+: "${WRITE_COMMUNITY:?Write community must be set in WRITE_COMMUNITY}"
+
 ERR_UNKNOWN_CMD=1
 ERR_INDEX_RANGE=2
 
@@ -56,26 +59,26 @@ function calc
 #
 function get_pdu_status
 {
-    mapfile -t -d, status_array < <(snmpwalk -Ofsqv -Pe -cpublic -v1 10.10.10.9 "$STATUS_MIB_STR" | sed -e 's/\"//g' | sed -e 's/1/ON/g' -e 's/0/OFF/g')
+    mapfile -t -d, status_array < <(snmpwalk -Ofsqv -Pe -c"$WRITE_COMMUNITY" -v1 "$PDU_IP" "$STATUS_MIB_STR" | sed -e 's/\"//g' | sed -e 's/1/ON/g' -e 's/0/OFF/g')
     status_array=("STATE" "${status_array[@]}")
 }
 
 function get_pdu_names
 {
-    mapfile -t names_array < <( snmpwalk -Os -cpublic -v1 10.10.10.9 "$CONFIG_MIB_STR" | sed -n 's/.*\(O.*[1-9]\)C.*\"\([^,]*\),.*/\1 \2/p')
+    mapfile -t names_array < <( snmpwalk -Os -c"$WRITE_COMMUNITY" -v1 "$PDU_IP" "$CONFIG_MIB_STR" | sed -n 's/.*\(O.*[1-9]\)C.*\"\([^,]*\),.*/\1 \2/p')
     names_array=("OUTLET NAME" "${names_array[@]}")
 }
 
 function get_pdu_amps
 {
-    AMPS_x_10=$(snmpwalk -Ofsqv -cpublic -v1 10.10.10.9 "$CURRENT_MIB_STR")
+    AMPS_x_10=$(snmpwalk -Ofsqv -c"$WRITE_COMMUNITY" -v1 "$PDU_IP" "$CURRENT_MIB_STR")
     # shellcheck disable=SC2086
     calc $AMPS_x_10/10
 }
 
 function set_pdu_status
 {
-    CMD_RES=$(snmpset -Os -cpublic -v1 10.10.10.9 "$STATUS_MIB_STR" s "$1")
+    CMD_RES=$(snmpset -Os -c"$WRITE_COMMUNITY" -v1 "$PDU_IP" "$STATUS_MIB_STR" s "$1")
     [[ $CMD_RES =~ $CMD_STR ]] && return 0
 
     return 1
@@ -163,7 +166,7 @@ then
 
     exit $?
 else
-    echo "$1 is an unrecognized command"
+    echo "Unrecognized command"
 
     # We've been called without a function name, so execute main
     help

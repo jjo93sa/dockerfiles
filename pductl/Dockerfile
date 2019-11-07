@@ -67,6 +67,8 @@ RUN apt-get update && apt-get install -y \
 COPY assets/PDUMIB.mib /var/lib/snmp/mibs/lindy/
 RUN chmod 644 /var/lib/snmp/mibs/lindy/PDUMIB.mib
 
+RUN mkdir -p /var/lib/snmp/mib_indexes
+
 COPY assets/entrypoint /usr/local/bin/
 RUN chmod 755 /usr/local/bin/entrypoint
 
