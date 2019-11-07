@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+#
+# Title:  pductl/entrypoint
+#
+# Description:
+#   Entry point script for the Docker image "pductl". This image enables
+#   control of LINDY IP Power PDU.
+#
+# Dependencies:
+#
+# Credits:
+#
+# Usage:
+#
+# Maintainer:
+#   dr.j.osborne@gmail.com
+#
+# License:
+#   MIT, see file in repository root.
+#
+set -eu
+set -o pipefail
+
+ERR_UNKNOWN_CMD=1
+ERR_INDEX_RANGE=2
+
+STATUS_MIB_STR="pdu01OutletStatus.0"
+CONFIG_MIB_STR="pdu01OutletConfig"
+CURRENT_MIB_STR="pdu01Value.0"
+
+declare -a names_array
+declare -a status_array
+
+##
+# Helper functions
+#
+function array_to_csv
+{
+    # Convert an array to a CSV string
+    local IFS= sep=","
+    local STR_RET="$1"
+
+    shift
+
+    STR_RET+="${*/#/$sep}"
+    echo "${STR_RET}"
+}
+
+function calc
+{
+    awk "BEGIN{print $*}";
+}
+
+##
+# Get and Set functions
+#
+function get_pdu_status
+{
+    mapfile -t -d, status_array < <(snmpwalk -Ofsqv -Pe -cpublic -v1 10.10.10.9 "$STATUS_MIB_STR" | sed -e 's/\"//g' | sed -e 's/1/ON/g' -e 's/0/OFF/g')
+    status_array=("STATE" "${status_array[@]}")
+}
+
+function get_pdu_names
+{
+    mapfile -t names_array < <( snmpwalk -Os -cpublic -v1 10.10.10.9 "$CONFIG_MIB_STR" | sed -n 's/.*\(O.*[1-9]\)C.*\"\([^,]*\),.*/\1 \2/p')
+    names_array=("OUTLET NAME" "${names_array[@]}")
+}
+
+function get_pdu_amps
+{
+    AMPS_x_10=$(snmpwalk -Ofsqv -cpublic -v1 10.10.10.9 "$CURRENT_MIB_STR")
+    # shellcheck disable=SC2086
+    calc $AMPS_x_10/10
+}
+
+function set_pdu_status
+{
+    CMD_RES=$(snmpset -Os -cpublic -v1 10.10.10.9 "$STATUS_MIB_STR" s "$1")
+    [[ $CMD_RES =~ $CMD_STR ]] && return 0
+
+    return 1
+}
+
+##
+# Controller function (for both on and off)
+#
+function pdu_ctl
+{
+    # Error/bound checking
+    ACTION="$1"
+    OUTLET="$2"
+    if [[ "$OUTLET" =~ ^[1-8]{1}$ ]]
+    then
+        # Need the current status to make sure we don't inadvertently switch a port
+        get_pdu_status
+
+        # Change status array with the req. action. No off by 1 cos of header
+        status_array["${OUTLET}"]="$ACTION"
+
+        # Convert array to csv string, and text to numbers
+        CMD_STR=$(array_to_csv "${status_array[@]:1}")
+        CMD_STR=${CMD_STR//ON/1}
+        CMD_STR=${CMD_STR//OFF/0}
+
+        # Set the PDU status as formed
+        set_pdu_status "$CMD_STR"
+        SUCCESS_OR_NOT=$?
+
+        if [ $SUCCESS_OR_NOT -eq 0 ]
+        then
+            echo "Success: Port $OUTLET switched $ACTION"
+        else
+            echo "Fail: Port $OUTLET unchanged"
+        fi
+
+        return $SUCCESS_OR_NOT
+    else
+        exit $ERR_INDEX_RANGE
+    fi
+}
+
+function help
+{
+cat <<End-of-message
+
+The pductl utility enables the status of a LINDY IP Power Classic PDU to be
+queried and set. Available commands are:
+
+pductl status - The current status of the PDU outlets and the current draw.
+pductl on N   - Switch on PDU outlet N (numbered 1-8);
+pductl off N  - Switrch off PDU outlet N (numbered 1-8);
+pductl help   - This text
+
+End-of-message
+}
+
+function on
+{
+    pdu_ctl ON "$1"
+    return $?
+}
+
+function off
+{
+    pdu_ctl OFF "$1"
+    return $?
+}
+
+function status
+{
+    get_pdu_status
+    get_pdu_names
+
+    echo "PDU current draw: $(get_pdu_amps) A"
+    paste  <( printf '%s\n' "${names_array[@]}" ) <( printf '%s\n' "${status_array[@]}" ) | column -t
+}
+
+set +u
+if declare -f -- "$1" &> /dev/null
+then
+    # We've been called like this: path/script function <params>
+    "$@"
+
+    exit $?
+else
+    echo "$1 is an unrecognized command"
+
+    # We've been called without a function name, so execute main
+    help
+
+    exit $ERR_UNKNOWN_CMD
+fi

@@ -1,0 +1,296 @@
+        
+-- Version : 1.0.1                                                  
+-- ************************************************************************
+-- PDU-MIB { iso org(3) dod(6) internet(1) private(4)               
+--    enterprises(1) pdu(17420) }                                   
+
+PDU-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+	TRAP-TYPE
+		FROM RFC-1215
+	DisplayString
+		FROM RFC1213-MIB
+	OBJECT-TYPE
+		FROM RFC-1212
+	enterprises
+		FROM RFC1155-SMI;
+
+
+pdu OBJECT IDENTIFIER 	::= { enterprises 17420 }
+
+products OBJECT IDENTIFIER 	::= { pdu 1 }
+
+
+devTable OBJECT IDENTIFIER	::= { products 2 }
+
+
+-- DEV basic information --
+
+devID OBJECT-TYPE
+	SYNTAX INTEGER (1..16)
+	ACCESS read-only
+	STATUS mandatory
+	DESCRIPTION
+		"The ID number of dev."
+	::= { devTable 1 }
+
+
+devIP OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..128))
+	ACCESS read-write
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate current IP address, netmask, default gateway, and DNS server."
+	::= { devTable 2 }
+
+
+devMAC OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..32))
+	ACCESS read-only
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate current MAC address."
+	::= { devTable 3 }
+
+
+devVersion OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..32))
+	ACCESS read-only
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate current firmware version."
+	::= { devTable 4 }
+
+
+devInfo OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..32))
+	ACCESS read-only
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate the count of attached PDUs and their id."
+	::= { devTable 5 }
+
+
+devValues OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..64))
+	ACCESS read-only
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate the PDU values (currents) from PDU1 to PDU16"
+	::= { devTable 6 }
+
+devTemperature OBJECT-TYPE
+	SYNTAX INTEGER (-50..100)
+	ACCESS read-only
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate the PDU temperature in Celsius degree"
+	::= { devTable 7 }
+
+devHumidity OBJECT-TYPE
+	SYNTAX INTEGER (0..100)
+	ACCESS read-only
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate the PDU humidity in percentage (%)"
+	::= { devTable 8 }
+
+pduTable OBJECT IDENTIFIER	::= { devTable 9 }
+
+
+-- PDU entries --
+-- PDU01 --
+
+pdu01Entry OBJECT IDENTIFIER	::= { pduTable 1 }
+
+
+pdu01Value OBJECT-TYPE
+	SYNTAX INTEGER
+	ACCESS read-only
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate the current of PDU-01 detect."
+	::= { pdu01Entry 11 }
+
+
+pdu01SubValues OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..64))
+	ACCESS read-only
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate the outlet values (currents) from Outlet1 to Outlet8"
+	::= { pdu01Entry 12 }
+
+
+pdu01OutletStatus OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..32))
+	ACCESS read-write
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate the outlet statuses (On or Off) from Outlet1 to Outlet8
+		 1: Outlet ON
+		 2: Outlet OFF
+		 -1: Outlet is not available
+		 -2: Outlet powr lost or Breaker triggered"
+	::= { pdu01Entry 13 }
+
+
+pdu01OutletConfigs OBJECT IDENTIFIER	::= { pdu01Entry 14 }
+
+
+pdu01Outlet1Config OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..64))
+	ACCESS read-write
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate the configuration of Outlet1"
+	::= { pdu01OutletConfigs 1 }
+
+
+pdu01Outlet2Config OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..64))
+	ACCESS read-write
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate the configuration of Outlet2"
+	::= { pdu01OutletConfigs 2 }
+
+
+pdu01Outlet3Config OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..64))
+	ACCESS read-write
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate the configuration of Outlet3"
+	::= { pdu01OutletConfigs 3 }
+
+
+pdu01Outlet4Config OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..64))
+	ACCESS read-write
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate the configuration of Outlet4"
+	::= { pdu01OutletConfigs 4 }
+
+
+pdu01Outlet5Config OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..64))
+	ACCESS read-write
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate the configuration of Outlet5"
+	::= { pdu01OutletConfigs 5 }
+
+
+pdu01Outlet6Config OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..64))
+	ACCESS read-write
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate the configuration of Outlet6"
+	::= { pdu01OutletConfigs 6 }
+
+
+pdu01Outlet7Config OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..64))
+	ACCESS read-write
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate the configuration of Outlet7"
+	::= { pdu01OutletConfigs 7 }
+
+
+pdu01Outlet8Config OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..64))
+	ACCESS read-write
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate the configuration of Outlet8"
+	::= { pdu01OutletConfigs 8 }
+
+
+pdu01Threshold1 OBJECT-TYPE
+	SYNTAX INTEGER (0..999)
+	ACCESS read-write
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate current threshold 1 (warning current)."
+	::= { pdu01Entry 15 }
+
+
+pdu01Threshold2 OBJECT-TYPE
+	SYNTAX INTEGER (0..999)
+	ACCESS read-write
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate current threshold 2 (critical current)."
+	::= { pdu01Entry 16 }
+
+
+pdu01Voltage OBJECT-TYPE
+	SYNTAX INTEGER (0..999)
+	ACCESS read-only
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate voltage of PDU."
+	::= { pdu01Entry 17 }
+
+
+pdu01ModelName OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..32))
+	ACCESS read-only
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate PDU model name."
+	::= { pdu01Entry 18 }
+
+
+pdu01ModelNo OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..32))
+	ACCESS read-only
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate PDU model number."
+	::= { pdu01Entry 19 }
+
+
+pdu01Identify OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..32))
+	ACCESS read-write
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate PDU identify."
+	::= { pdu01Entry 20 }
+	
+pdu01DelayOn OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..32))
+	ACCESS read-write
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate PDU Outlet On delay time. Unit is second "
+	::= { pdu01Entry 21 }	
+
+pdu01DelayOff OBJECT-TYPE
+	SYNTAX      DisplayString (SIZE (0..32))
+	ACCESS read-write
+	STATUS mandatory
+	DESCRIPTION
+		"Indicate PDU Outlet Off delay time. Unit is second "
+	::= { pdu01Entry 22 }	
+	
+--dev traps ----------------------------------------------------------------
+
+
+devEvent TRAP-TYPE
+	ENTERPRISE pdu
+	DESCRIPTION 
+		"Device event occur"
+ ::= 105
+
+
+
+
+END
+
