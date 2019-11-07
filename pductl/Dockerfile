@@ -76,7 +76,5 @@ RUN sed -i -e '$ a mibdirs /var/lib/snmp/mibs/lindy:/var/lib/snmp/mibs/ietf' \
      -e '/^mibs/c\mibs PDU-MIB'  \
      /etc/snmp/snmp.conf
 
-ENV WRITE_COMMUNITY=public
-
 ENTRYPOINT [ "/usr/local/bin/entrypoint" ]
 CMD [ "help" ]
