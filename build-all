@@ -177,7 +177,7 @@ function build_push()
         || { set -e; return 1; }
     set -e
 
-    success  "SUCCESS: built & pushed $BLD_STR $-"
+    success  "SUCCESS: built & pushed $BLD_STR"
 }
 
 function process_files()
