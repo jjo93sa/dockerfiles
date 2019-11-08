@@ -277,16 +277,19 @@ main()
 
     # Now we need to get the list of repositories to build. This is either in
     # $REP_LIST (if -r switch used) or we search DCF_DIR for all Dockerfiles
+    # and exclude existing repos (if -m switch used).
     if [ -n "$REP_LST" ]
     then
-        # -r repository list specified
+        # -r repository list specified, so we only use that going forward
         IFS=',' read -a REPO_LIST <<< "$REP_LST"
     else
         # Search for all Dockerfiles in directory:
-        # Munge the names to get repository list
-        # Combine it with the repository list from -m REG
-        # Sort and filter unique repositories, i.e. those not already in REG
-        # EXISTING is empty so has no impact if -m not set on CMD line
+        # - Munge the names to get repository list
+        # - Combine it with the EXISTING repository list from -m REG above,
+        #   EXISTING is empty if -m not given, so has no effect
+        # - Sort and filter unique repositories, i.e. those not already in REG
+        #TODO: What about repos in REG but not in DCF_DIR, eg a repo deleted
+        #from DCF_DIR?
         REPO_LIST=$( find -L "${DCF_DIR}" -iname "*Dockerfile" -exec dirname {} \; |
         sed 's|^.*/||' |
         cat "${EXISTING}" - |
@@ -295,48 +298,14 @@ main()
     fi
 
     # Generate a list of Dockerfiles (Type 1 & 2):
-    # 1) Take local Dockerfiles list;
-    # 2) Combine with registry Docker images list (no-op if -m not specified)
-    #    AND the list of Type 3 files (in subordinate file);
-    # 3) Sort the combined list;
-    # 4) Select only non-duplicated lines, that is Type 1 & 2 Dockerfiles that
-    #    exist locally but not in the registry (we ignore case where registry
-    #    might contain images without local Dockerfile). Type 3 files are
-    #    filtered since they are duplicated by their presence in the local list
-    #    AND the subordinate file;
-    # This is a mess, but I can't find an easier way that avoids the vagaries
-    # of command chaining, grep, empty files and conditional execution.
+    # - Remove all the repos contained in the subordinate list from REPO_LIST
     T12_LIST=()
     T12_LIST=( $( for i in "${REPO_LIST[@]}"; do echo "$i"; done | grep -vf "${DCF_DIR}"/subordinate ) )
-    #while IFS='' read -r line
-    #do
-    #    T12_LIST+=("$line")
-    #done < <( echo "${REPO_LIST}" |
-    #    cat "${DCF_DIR}"/subordinate "${EXISTING}" - |
-    #    sort |
-    #    uniq -u )
 
     # Generate a list of Dockerfiles (Type 3):
-    # 1) Take local Dockerfiles list;
-    # 2) Combine with registry Docker images list (no-op if -m not specified);
-    # 3) Sort the combined list;
-    # 4) Select only non-duplicated lines, that is Dockerfiles that exist
-    #    locally but not in the registry (we ignore case where registry might
-    #    contain images without local Dockerfile);
-    # 5) Select only Type 3 Dockerfiles missing from the registry by matching
-    #    with the subordinate file list.
-    # This is a mess, but I can't find an easier way that avoids the vagaries
-    # of command chaining, grep, empty files and conditional execution.
+    # - Select only those repos in the subordinate list also in the REPO_LIST
     T_3_LIST=()
     T_3_LIST=( $(for i in "${REPO_LIST[@]}"; do echo "$i"; done | grep -f "${DCF_DIR}"/subordinate || true) )
-    #while IFS='' read -r line
-    #do
-    #    T_3_LIST+=("$line")
-    #done < <( echo "${REPO_LIST}" |
-    #    cat  "${EXISTING}" - |
-    #    sort |
-    #    uniq -u |
-    #    grep -f "${DCF_DIR}"/subordinate )
 
     # Build any Type 1 & 2 Dockerfiles
     if [ ${#T12_LIST[@]} -gt 0 ]
@@ -381,9 +350,14 @@ main()
     exit 0
 }
 
+# We set +u here because $1 might be unset if script has been called without
+# parameters
+set +u
+
 if declare -f -- "$1" &> /dev/null
 then
     # We've been called like this: path/script function <params>
+    # AND that function name exists in this script file.
     "$@"
 else
     # We've been called without a function name, so execute main
