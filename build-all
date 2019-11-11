@@ -73,7 +73,11 @@ EXISTING=$(mktemp) && touch "${EXISTING}"
 
 # Declare these variables (because we have set -u)
 CMP_REG=
+EXC_REP=
 REP_LST=
+
+# Custom error codes:
+ERR_OPTIONS_FALSE=200
 
 function box
 {
@@ -146,6 +150,8 @@ build-all -h        Print this help message and exit
                     default: rw.j2o.it
           -t TAG    Set the tag to apply to new images
                     default: latest
+          -x R1,R2  Exclude this list of repositories from the build
+                    default: empty list
 
 End-of-message
 }
@@ -209,7 +215,7 @@ function process_files()
 main()
 {
     # Let's process the command line flags
-    while getopts ":a:b:d:hm:p:r:t:" opt; do
+    while getopts ":a:b:d:hm:p:r:t:x:" opt; do
         case $opt in
             a)
                 # This is the comma-separated list of architectures
@@ -236,9 +242,6 @@ main()
             r)
                 # This is the list of repositories to build
                 REP_LST="${OPTARG}"
-
-                # Negate -m option, -m and -r are exclusive
-                CMP_REG=
                 ;;
             p)
                 # This is the registry to use for the push
@@ -247,6 +250,10 @@ main()
             t)
                 # This is the tag to use for the new image
                 OUR_TAG="${OPTARG}"
+                ;;
+            x)
+                # This is the list of repos to exclude from build
+                EXC_REP="${OPTARG}"
                 ;;
             \?)
                 echo "$SCRIPT: invalid option supplied: -$OPTARG"
@@ -259,6 +266,13 @@ main()
         esac
     done
 
+    # Handle exclusivity of options
+    if [ -n "$CMP_REG" -a -n "$REP_LST" ]
+    then
+        fail "Options -m and -r are mutually exclusive"
+        exit "$ERR_OPTIONS_FALSE"
+    fi
+
     # Use the command line params, or the following defaults:
     DCF_DIR="${DCF_DIR:-$(pwd)}"
     IMG_ARC="${IMG_ARC:-linux/arm,linux/arm64,linux/amd64}"
@@ -266,6 +280,7 @@ main()
     MAX_JOB="${MAX_JOB:-1}"
     OUR_TAG="${OUR_TAG:-latest}"
 
+    # Handle -m option
     if [ -n "$CMP_REG" ]
     then
         info "Getting repository list for ${CMP_REG}"
@@ -273,6 +288,14 @@ main()
         # -m set; use r.j3ss.co/reg to list the existing docker repositories
         docker run r.j3ss.co/reg ls "${CMP_REG}" 2>/dev/null |
             awk 'NR>2 {print $1}' > "${EXISTING}"
+    fi
+
+    # Handle -x option. We have a CSV list of repositories to exclude from the
+    # build. Separate them with new lines and append to $EXISTING (they will
+    # then be removed from the list of repos to build in the next steps
+    if [ -n "$EXC_REP" ]
+    then
+        echo "$EXC_REP" | tr ',' '\n' >> "${EXISTING}"
     fi
 
     # Now we need to get the list of repositories to build. This is either in
