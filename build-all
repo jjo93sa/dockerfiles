@@ -11,10 +11,6 @@
 #   Docker buildx requires some configuration before it can be used. I followed
 #   the guide here: https://engineering.docker.com/2019/04/multi-arch-images/
 #
-#   Attempts to use GNU parallel (https://www.gnu.org/software/parallel/)
-#   to speed-up the image creation & push to a registry. See the help text by
-#   running ./build-all -h.
-#
 #   We define three types of Dockerfile to build:
 #     Type 1 - Standard Docker images, which may be used standalone or as the
 #              basis for another image.
@@ -26,7 +22,7 @@
 #
 #   We ensure that the Type 1 and 2 images are built first. Type 3 images are
 #   listed in a file called "subordinate". This file must have blank line if
-#   no dependent, or Type 3 Docker files exist, otherwise no images will be
+#   no dependent, or Type 3, Dockerfiles exist, otherwise no images will be
 #   built.
 #
 # Dependencies:
@@ -35,6 +31,7 @@
 #   (2) Assumes any Type 3 Docker files are listed in a file called
 #       "subordinate" in the root of the Docker file structure. (See example
 #       in this repo.)
+#   (3) Requires Bash version >4 because uses mapfile.
 #
 # Credits:
 #   Heavily based on the build-all script of jessfraz, see:
@@ -46,11 +43,11 @@
 #   (0) Login to your Docker registry (the one specified with the -p switch);
 #   (1) Place this script in the root of your Dockerfile project;
 #   (2) Execute the script ./build-all with the appropriate options, which are
-#       described below. In addition, two environment variables are used to
+#       described below. In addition, one environment variable is used to
 #       control the docker build command:
 #       NO_CACHE - which is used to set the --no-cache switch &
-#       QUIET - which is used to set the -q switch
-#   (3) Check the build-errors.txt file for any problems during the build.
+#   (3) Build status is shown at the end of the process, specifically any
+#       images that failed to build/push are reported.
 #
 # Maintainer:
 #   dr.j.osborne@gmail.com
@@ -65,8 +62,7 @@ set -o pipefail
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
 # Error file, zero out on launch
-ERROR_FILE="$(pwd)/build-errors.txt"
-echo -n > "$ERROR_FILE"
+ERROR_FILE="$(mktemp)"
 
 # Create a file for existing repository list
 EXISTING=$(mktemp) && touch "${EXISTING}"
@@ -75,6 +71,14 @@ EXISTING=$(mktemp) && touch "${EXISTING}"
 CMP_REG=
 EXC_REP=
 REP_LST=
+
+# counters
+CNT_TOTAL=0
+CNT_PROGRESS=0
+CNT_SECTION_TOTAL=0
+CNT_SECTION_PROGRESS=0
+CNT_FAIL=0
+CNT_SUCCESS=0
 
 # Custom error codes:
 ERR_OPTIONS_FALSE=200
@@ -91,21 +95,21 @@ function box
 function info
 {
     tput setaf 4
-    box "$@"
+    echo "$@"
     tput sgr0
 }
 
 function success
 {
     tput setaf 2
-    box "$@"
+    echo "$@"
     tput sgr0
 }
 
 function fail
 {
     tput setaf 1
-    box "$@"
+    echo "$@"
     tput sgr0
 }
 
@@ -119,26 +123,24 @@ Can also be used to build and push a subset of repositories.
 
 Synopsis:
 Build all Dockerfiles in a directory:
-    build-all [-a ARCH1,ARCH2] [-b JOBS] [-d DIR] [-p REG] [-t TAG]
+    build-all [-a ARCH1,ARCH2] [-d DIR] [-p REG] [-t TAG]
 
 Build all Dockerfiles in a dir but not present in a registry, use -m flag:
-    build-all -m REG [-a ARCH1,ARCH2] [-b JOBS] [-d DIR] [-p REG] [-t TAG]
+    build-all -m REG [-a ARCH1,ARCH2] [-d DIR] [-p REG] [-t TAG]
 
 Build specifc Dockerfiles, use -r flag and csv list:
-    build-all -r REP,.. [-a ARCH1,ARCH2] [-b JOBS] [-d DIR] [-p REG] [-t TAG]
+    build-all -r REP,.. [-a ARCH1,ARCH2] [-d DIR] [-p REG] [-t TAG]
 
 Help:
     build-all -h
 
 A single repository might also be built thus:
-    build-all build_push REG ARCH1,ARCH2,.. IMAGE TAG DIR
+    build-all build_push ARCH1,ARCH2,.. REG/IMAGE:TAG DIR
 
 build-all -h        Print this help message and exit
           -a ARCH   Comma-separated list of platforms to build
                     Docker buildx is an experimental feature
                     default: linux/arm,linux/arm64,linux/amd64
-          -b JOBS   Jobs count to use if GNU Parallel is installed
-                    default: 1
           -d DIR    Set the Dockerfile search directory to DIR
                     default: current working directory
           -m REG    Only build Docker images missing from REG.
@@ -159,71 +161,82 @@ End-of-message
 function build_push()
 {
     # Parameters
-    # $1 - Registry
-    # $2 - Platform list
-    # $3 - Image name
-    # $4 - Tag
-    # $5 - build directory
-
-    local BLD_STR="$1/$3:$4"
-
-    # Some environment variable from the host to control how we build
-    QUIET=${QUIET+-q}
-    NO_CACHE=${NO_CACHE+--no-cache}
-
-    # docker buildx can throw errors. We don't want to exit this script if it
-    # does, preferring to build the other (independent) containers
-    set +e
+    # $1 - Platform list
+    # $2 - build string
+    # $3 - build directory
 
     # Build & push the image. buildx will build multiplatform images.
-    echo "Building $BLD_STR with context $5"
-    docker buildx build --pull --platform "${2}" \
-        -t "${BLD_STR}" \
-        --push "${5}" \
-        || { set -e; return 1; }
-    set -e
-
-    success  "SUCCESS: built & pushed $BLD_STR"
+    # --pull => always attempt to pull a new image
+    # --push => push image to registry
+    # --no-cache => (if set) do not use cache in build
+    # --tag => image tag, which has form: registry/repository:tag
+    # shellcheck disable=SC2086
+    docker buildx build ${NO_CACHE:- } --pull --push \
+        --platform "${1}" \
+        --tag "${BLD_STR}" \
+        "${BLD_DIR}"
 }
 
 function process_files()
 {
     # Parameters
     # $1 - Registry
-    # $2 - Arch list (buildx --platform)
-    # $3 - Tag
+    # $2 - Architecture list (relates to buildx --platform list)
+    # $3 - Tag to apply to repository
     # $4 - Repository name (e.g. wget)
-    # $5 - Current path
+    # $5 - Path to parent directory of repository context
 
-    local BUILD_DIR="${5}/${4}"
+    # Repository context
+    local BLD_DIR="${5}/${4}"
 
-    # Codeblock
-    {
-        # We don't want the script to abort if the build fails
-        info "Starting build for: $4"
+    # Image tag
+    local BLD_STR="${1}/${4}:${3}"
 
-        # build_push $REG $PLATFORM $IMAGE $TAG $BUILD_DIR
-        $SCRIPT build_push "${1}" "${2}" "${4}" "$3" "${BUILD_DIR}"
-    } || {
-            fail "FAIL: Building ${4}:${3} FAILED with error $?" |
-            tee -a "${ERROR_FILE}"
-    }
+    # Form ((CNT_PROGRESS++)) was giving errors
+    ((CNT_PROGRESS += 1))
+    ((CNT_SECTION_PROGRESS += 1))
 
+    info "Build image:    [$BLD_STR]"
+    info "Build progress: [$CNT_SECTION_PROGRESS/$CNT_SECTION_TOTAL ($CNT_PROGRESS/$CNT_TOTAL)]"
+    info "Build context:  [$BLD_DIR]"
+
+    # buildx can throw errors. We don't want to exit this script if it does,
+    # instead we continue building the other (independent) containers
+    set +e
+
+    # build_push $PLATFORM $TAG $BUILD_DIR
+    ( build_push "${2}" "${BLD_STR}" "${BLD_DIR}" )
+    BUILD_STATUS=$?
+
+    if [ $BUILD_STATUS -eq 0 ]
+    then
+        ((CNT_SUCCESS++))
+        success  "Success, pushed image: [$BLD_STR]"
+    else
+        ((CNT_FAIL++))
+        fail "Failure: [$BLD_STR]" | tee -a "${ERROR_FILE}"
+    fi
+
+    # Re-enable termination on error
+    set -e
+
+    echo
+    info "Status"
+    info "Section progress:    [$CNT_SECTION_PROGRESS/$CNT_SECTION_TOTAL]"
+    info "Overall progress:    [$CNT_PROGRESS/$CNT_TOTAL]"
+    info "Results (pass/fail): [$CNT_SUCCESS/$CNT_FAIL]"
+    echo
     echo
 }
 
 main()
 {
     # Let's process the command line flags
-    while getopts ":a:b:d:hm:p:r:t:x:" opt; do
+    while getopts ":a:d:hm:p:r:t:x:" opt; do
         case $opt in
             a)
                 # This is the comma-separated list of architectures
                 IMG_ARC="${OPTARG}"
-                ;;
-            b)
-                # This is the number of parallel jobs
-                MAX_JOB="${OPTARG}"
                 ;;
             d)
                 # This is the docker directory containing all image/Dockerfile
@@ -267,7 +280,7 @@ main()
     done
 
     # Handle exclusivity of options
-    if [ -n "$CMP_REG" -a -n "$REP_LST" ]
+    if [ -n "$CMP_REG" ] && [ -n "$REP_LST" ]
     then
         fail "Options -m and -r are mutually exclusive"
         exit "$ERR_OPTIONS_FALSE"
@@ -277,7 +290,6 @@ main()
     DCF_DIR="${DCF_DIR:-$(pwd)}"
     IMG_ARC="${IMG_ARC:-linux/arm,linux/arm64,linux/amd64}"
     OUR_REG="${OUR_REG:-rw.j2o.it}"
-    MAX_JOB="${MAX_JOB:-1}"
     OUR_TAG="${OUR_TAG:-latest}"
 
     # Handle -m option
@@ -304,7 +316,7 @@ main()
     if [ -n "$REP_LST" ]
     then
         # -r repository list specified, so we only use that going forward
-        IFS=',' read -a REPO_LIST <<< "$REP_LST"
+        IFS=',' read -r -a REPO_LIST <<< "$REP_LST"
     else
         # Search for all Dockerfiles in directory:
         # - Munge the names to get repository list
@@ -313,61 +325,68 @@ main()
         # - Sort and filter unique repositories, i.e. those not already in REG
         #TODO: What about repos in REG but not in DCF_DIR, eg a repo deleted
         #from DCF_DIR?
-        REPO_LIST=$( find -L "${DCF_DIR}" -iname "*Dockerfile" -exec dirname {} \; |
+        mapfile -t REPO_LIST < <(find -L "${DCF_DIR}" -iname "*Dockerfile" -exec dirname {} \; |
         sed 's|^.*/||' |
         cat "${EXISTING}" - |
         sort |
-        uniq -u )
+        uniq -u)
     fi
 
     # Generate a list of Dockerfiles (Type 1 & 2):
     # - Remove all the repos contained in the subordinate list from REPO_LIST
     T12_LIST=()
-    T12_LIST=( $( for i in "${REPO_LIST[@]}"; do echo "$i"; done | grep -vf "${DCF_DIR}"/subordinate ) )
+    mapfile -t T12_LIST < <(for i in "${REPO_LIST[@]}"; do echo "$i"; done | grep -vf "${DCF_DIR}"/subordinate)
 
     # Generate a list of Dockerfiles (Type 3):
     # - Select only those repos in the subordinate list also in the REPO_LIST
     T_3_LIST=()
-    T_3_LIST=( $(for i in "${REPO_LIST[@]}"; do echo "$i"; done | grep -f "${DCF_DIR}"/subordinate || true) )
+    mapfile -t T_3_LIST < <(for i in "${REPO_LIST[@]}"; do echo "$i"; done | grep -f "${DCF_DIR}"/subordinate || true)
+
+    CNT_TOTAL=$((${#T12_LIST[@]}+${#T_3_LIST[@]}))
+
+    info "Building $CNT_TOTAL Docker images"
+    info "Errors logged to $ERROR_FILE"
+    echo
 
     # Build any Type 1 & 2 Dockerfiles
     if [ ${#T12_LIST[@]} -gt 0 ]
     then
-        info "Building ${#T12_LIST[@]} type 1 and 2 images"
-        if [ -x "$(command -v parallel)" ] && [ "${MAX_JOB}" -gt 1 ]
-        then
-            parallel -u -j "${MAX_JOB}" "${SCRIPT}" process_files "${OUR_REG}" \
-                "${IMG_ARC}" "${OUR_TAG}" "{1}" "${DCF_DIR}" \
-                ::: "${T12_LIST[@]}"
-        else
-            for DCF in "${T12_LIST[@]}"
-            do
-                "${SCRIPT}" process_files "${OUR_REG}" "${IMG_ARC}" \
-                    "${OUR_TAG}" "${DCF}" "${DCF_DIR}"
-            done
-        fi
+        CNT_SECTION_TOTAL=${#T12_LIST[@]}
+        info "Building ${CNT_SECTION_TOTAL} type 1 and 2 images"
+        for DCF in "${T12_LIST[@]}"
+        do
+            process_files "${OUR_REG}" "${IMG_ARC}" \
+                "${OUR_TAG}" "${DCF}" "${DCF_DIR}"
+        done
     else
         info "No type 1 or 2 images to build"
     fi
 
+    CNT_SECTION_PROGRESS=0
+
     # Build any Type 3 Dockerfiles:
     if [ ${#T_3_LIST[@]} -gt 0 ]
     then
-        info "Building ${#T_3_LIST[@]} type 3 images"
-        if [ -x "$(command -v parallel)" ] && [ "${MAX_JOB}" -gt 1 ]
-        then
-            parallel -u -j "${MAX_JOB}" "${SCRIPT}" process_files "${OUR_REG}" \
-                "${IMG_ARC}" "${OUR_TAG}" "{1}"  "${DCF_DIR}" \
-                ::: "${T_3_LIST[@]}"
-        else
-            for DCF in "${T_3_LIST[@]}"
-            do
-                "${SCRIPT}" process_files "${OUR_REG}" "${IMG_ARC}" \
-                    "${OUR_TAG}" "${DCF}" "${DCF_DIR}"
-            done
-        fi
+        CNT_SECTION_TOTAL=${#T_3_LIST[@]}
+        info "Building ${CNT_SECTION_TOTAL} type 3 images"
+        for DCF in "${T_3_LIST[@]}"
+        do
+            process_files "${OUR_REG}" "${IMG_ARC}" \
+                "${OUR_TAG}" "${DCF}" "${DCF_DIR}"
+        done
     else
-            info "No type 3 images to build"
+        info "No type 3 images to build"
+    fi
+
+    echo
+    echo "Summary:"
+    success "Build success: $CNT_SUCCESS images"
+    fail "Build failure: $CNT_FAIL images"
+    echo
+    if [ "$CNT_FAIL" -gt 0 ]
+    then
+        echo "Images that experienced errors:"
+        cat "$ERROR_FILE"
     fi
 
     exit 0
