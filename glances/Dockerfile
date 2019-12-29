@@ -63,6 +63,7 @@ LABEL status "development"
 
 # Install python, plus some development tools to build later packages
 RUN apk --no-cache add alpine-sdk \
+                       iputils \
                        linux-headers \
                        python \
                        python-dev \
