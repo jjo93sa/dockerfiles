@@ -9,6 +9,9 @@
 # Dependencies:
 #
 # Credits:
+#   Function to test valid IP addresses taken from Mitch Frazier in this Linux
+#   Journal article:
+#   https://www.linuxjournal.com/content/validating-ip-address-bash-script
 #
 # Usage:
 #
@@ -24,8 +27,13 @@ set -o pipefail
 : "${PDU_IP:?IP address of PDU must be set in PDU_IP}"
 : "${WRITE_COMMUNITY:?Write community must be set in WRITE_COMMUNITY}"
 
-ERR_UNKNOWN_CMD=1
 ERR_INDEX_RANGE=2
+ERR_UNKNOWN_CMD=3
+ERR_HOSTNAME=4
+ERR_ARG_COUNT=5
+ERR_PDU_UNKNOWN=6
+ERR_OUTLET_UNKNOWN=7
+ERR_BAD_IP_ADDR=8
 
 STATUS_MIB_STR="pdu01OutletStatus.0"
 CONFIG_MIB_STR="pdu01OutletConfig"
@@ -33,10 +41,32 @@ CURRENT_MIB_STR="pdu01Value.0"
 
 declare -a names_array
 declare -a status_array
+declare -a pdu_array
+declare -i pdu_max
 
 ##
 # Helper functions
 #
+
+# Test an IP address for validity:
+# From: https://www.linuxjournal.com/content/validating-ip-address-bash-script
+function test_valid_ip()
+{
+    local  ip=$1
+    local  stat=1
+
+    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        OIFS=$IFS
+        IFS='.'
+        ip=($ip)
+        IFS=$OIFS
+        [[ ${ip[0]} -le 255 && ${ip[1]} -le 255 \
+            && ${ip[2]} -le 255 && ${ip[3]} -le 255 ]]
+        stat=$?
+    fi
+    return $stat
+}
+
 function array_to_csv
 {
     # Convert an array to a CSV string
@@ -49,6 +79,19 @@ function array_to_csv
     echo "${STR_RET}"
 }
 
+function csv_to_array
+{
+    # Convert a CSV string to an array
+    mapfile -d ',' -t pdu_array < <(printf '%s,' "$1")
+}
+
+function size_of_array
+{
+    # Determine size of a bash array
+    arr=("$@")
+    echo "${#arr[@]}"
+}
+
 function calc
 {
     awk "BEGIN{print $*}";
@@ -57,28 +100,93 @@ function calc
 ##
 # Get and Set functions
 #
+function get_pdu_ip
+{
+    [[ $# -eq 1 ]] || (echo "ERROR: Incorrect arguments in ${FUNCNAME[0]}"; exit $ERR_ARG_COUNT)
+
+    # Get the IP address of the PDU in the given position
+    local index="$1"
+    local pdu_ip
+
+    # Test index is in acceptable range
+    if ((index >=1 && index <= $pdu_max)); then
+        (( index-- ))
+        # Get PDU IP address from array
+        pdu_ip=${pdu_array[$index]}
+    else
+        echo "ERROR: Index out of range in ${FUNCNAME[0]}"
+        exit $ERR_INDEX_RANGE
+    fi
+
+    # Now we've got an IP address, test it
+    if test_valid_ip "$pdu_ip"; then
+        # Valid
+        echo "$pdu_ip"
+        return 0
+    else
+        # invalid
+        echo "ERROR: Badly formatted IP at $index in ${FUNCNAME[0]}"
+        exit $ERR_BAD_IP_ADDR
+    fi
+}
+
+function get_pdu_name_from_ip
+{
+    # Get PDU DNS name if it exists from the IP using reverse lookuo
+    local ip_to_name="$1"
+
+    local name
+
+    name=$( host "$ip_to_name" | sed 's/^.*[[:blank:]]//'; exit $ERR_HOSTNAME)
+    # test $?
+    if [[ $? -ne 0 ]]; then
+        echo "Name not found"
+    else
+        echo "$name"
+    fi
+
+}
+
+function get_pdu_count
+{
+    # Get the number of PDUs in the list
+    size_of_array "${pdu_array[@]}"
+}
+
 function get_pdu_status
 {
-    mapfile -t -d, status_array < <(snmpwalk -Ofsqv -Pe -c"$WRITE_COMMUNITY" -v1 "$PDU_IP" "$STATUS_MIB_STR" | sed -e 's/\"//g' | sed -e 's/1/ON/g' -e 's/0/OFF/g')
+    local pdu_ip
+
+    pdu_ip=$(get_pdu_ip $1)
+
+    mapfile -t -d, status_array < <(snmpwalk -Ofsqv -Pe -c"$WRITE_COMMUNITY" -v1 "$pdu_ip" "$STATUS_MIB_STR" | sed -e 's/\"//g' | sed -e 's/1/ON/g' -e 's/0/OFF/g')
     status_array=("STATE" "${status_array[@]}")
 }
 
-function get_pdu_names
+function get_pdu_outlet_names
 {
-    mapfile -t names_array < <( snmpwalk -Os -c"$WRITE_COMMUNITY" -v1 "$PDU_IP" "$CONFIG_MIB_STR" | sed -n 's/.*\(O.*[1-9]\)C.*\"\([^,]*\),.*/\1 \2/p')
+    local pdu_ip
+
+    pdu_ip=$(get_pdu_ip $1)
+
+    mapfile -t names_array < <( snmpwalk -Os -c"$WRITE_COMMUNITY" -v1 "$pdu_ip" "$CONFIG_MIB_STR" | sed -n 's/.*\(O.*[1-9]\)C.*\"\([^,]*\),.*/\1 \2/p')
     names_array=("OUTLET NAME" "${names_array[@]}")
 }
 
 function get_pdu_amps
 {
-    AMPS_x_10=$(snmpwalk -Ofsqv -c"$WRITE_COMMUNITY" -v1 "$PDU_IP" "$CURRENT_MIB_STR")
+    local pdu_ip=$(get_pdu_ip $1)
+
+    AMPS_x_10=$(snmpwalk -Ofsqv -c"$WRITE_COMMUNITY" -v1 "$pdu_ip" "$CURRENT_MIB_STR")
     # shellcheck disable=SC2086
     calc $AMPS_x_10/10
 }
 
 function set_pdu_status
 {
-    CMD_RES=$(snmpset -Os -c"$WRITE_COMMUNITY" -v1 "$PDU_IP" "$STATUS_MIB_STR" s "$1")
+    local pdu_ip=$(get_pdu_ip $1)
+
+    CMD_RES=$(snmpset -Os -c"$WRITE_COMMUNITY" -v1 "$pdu_ip" "$STATUS_MIB_STR" s "$2")
     [[ $CMD_RES =~ $CMD_STR ]] && return 0
 
     return 1
@@ -89,13 +197,21 @@ function set_pdu_status
 #
 function pdu_ctl
 {
+    [[ $# -eq 3 ]] || (echo "ERROR: Incorrect arguments in ${FUNCNAME[0]}"; exit $ERR_ARG_COUNT)
+
     # Error/bound checking
     ACTION="$1"
-    OUTLET="$2"
+    PDU="$2"
+    OUTLET="$3"
+
+    # Check PDU <= PDU_count
+    [[ $PDU -gt $pdu_max ]] && (echo "ERROR: PDU $PDU does not exist in ${FUNCNAME[0]}"; exit $ERR_PDU_UNKNOWN)
+
     if [[ "$OUTLET" =~ ^[1-8]{1}$ ]]
     then
         # Need the current status to make sure we don't inadvertently switch a port
-        get_pdu_status
+        # updates a global
+        get_pdu_status "$PDU"
 
         # Change status array with the req. action. No off by 1 cos of header
         status_array["${OUTLET}"]="$ACTION"
@@ -106,19 +222,20 @@ function pdu_ctl
         CMD_STR=${CMD_STR//OFF/0}
 
         # Set the PDU status as formed
-        set_pdu_status "$CMD_STR"
+        set_pdu_status "$PDU" "$CMD_STR"
         SUCCESS_OR_NOT=$?
 
         if [ $SUCCESS_OR_NOT -eq 0 ]
         then
-            echo "Success: Port $OUTLET switched $ACTION"
+            echo "Success: PDU $PDU Port $OUTLET switched $ACTION"
         else
-            echo "Fail: Port $OUTLET unchanged"
+            echo "Fail: PDU $PDU Port $OUTLET unchanged"
         fi
 
         return $SUCCESS_OR_NOT
     else
-        exit $ERR_INDEX_RANGE
+        echo "ERROR: Outlet $OUTLET does not exist in ${FUNCNAME[0]}"
+        exit $ERR_OUTLET_UNKNOWN
     fi
 }
 
@@ -129,34 +246,68 @@ cat <<End-of-message
 The pductl utility enables the status of a LINDY IP Power Classic PDU to be
 queried and set. Available commands are:
 
-pductl status - The current status of the PDU outlets and the current draw.
-pductl on N   - Switch on PDU outlet N (numbered 1-8);
-pductl off N  - Switrch off PDU outlet N (numbered 1-8);
-pductl help   - This text
+pductl list - List the PDUs recognized;
+pductl status [M] - The current status of the PDU [M] outlets and the current;
+pductl on M N   - Switch on PDU M outlet N (numbered 1-8);
+pductl off M N  - Switch off PDU M outlet N (numbered 1-8);
+pductl help   - This text.
 
 End-of-message
 }
 
 function on
 {
-    pdu_ctl ON "$1"
+    [[ $# -eq 2 ]] || (echo "ERROR: Incorrect arguments in ${FUNCNAME[0]}"; help; exit $ERR_ARG_COUNT)
+    pdu_ctl ON "$1" "$2"
     return $?
 }
 
 function off
 {
-    pdu_ctl OFF "$1"
+    [[ $# -eq 2 ]] || (echo "ERROR: Incorrect arguments in ${FUNCNAME[0]}"; help; exit $ERR_ARG_COUNT)
+    pdu_ctl OFF "$1" "$2"
     return $?
 }
 
 function status
 {
-    get_pdu_status
-    get_pdu_names
+    # We should have 1 or fewer arguments
+    [[ $# -le 1 ]] || (echo "ERROR: Too many arguments in ${FUNCNAME[0]}"; help; exit $ERR_ARG_COUNT)
 
-    echo "PDU current draw: $(get_pdu_amps) A"
-    paste  <( printf '%s\n' "${names_array[@]}" ) <( printf '%s\n' "${status_array[@]}" ) | column -t
+    # If single PDU requested, or use full range
+    local pdu_top=${1:-$pdu_max}
+    local pdu_num=${1:-1}
+
+    # Must check pdu_num exists. Easy way pdu_num <= pdu_max
+    [[ $pdu_num -gt $pdu_max ]] && (echo "ERROR: PDU $pdu_num does not exist."; exit $ERR_PDU_UNKNOWN)
+
+    # while pdu_num <= pdu_max; do
+    while [ "$pdu_num" -le "$pdu_top" ]
+    do
+        get_pdu_status $pdu_num
+        get_pdu_outlet_names $pdu_num
+
+        echo "PDU $pdu_num at $(get_pdu_ip $pdu_num)"
+        echo "current draw: $(get_pdu_amps $pdu_num) A"
+        paste  <( printf '%s\n' "${names_array[@]}" ) <( printf '%s\n' "${status_array[@]}" ) | column -t
+
+        (( pdu_num++ ))
+        echo
+    done
 }
+
+function list
+{
+    # List the known PDUs: index, IP, name
+    for i in "${!pdu_array[@]}";
+    do
+        echo "$(( $i + 1 ))  ${pdu_array[$i]} $(get_pdu_name_from_ip ${pdu_array[$i]})"
+    done
+}
+
+# Init
+csv_to_array "$PDU_IP"
+pdu_max=$(get_pdu_count)
 
 set +u
 if declare -f -- "$1" &> /dev/null

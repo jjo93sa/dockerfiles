@@ -58,6 +58,7 @@ LABEL version "0.1"
 RUN sed -i '/^deb/ s/$/ non-free/' /etc/apt/sources.list
 
 RUN apt-get update && apt-get install -y \
+            bind9-host \
             bsdmainutils \
             snmp \
             snmp-mibs-downloader \
