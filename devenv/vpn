@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+function start()
+{
+    #TODO: Test that we have exactly 1 parameter and format?
+
+    # Start the tailscale daemon, redirect output and background process
+    sudo tailscaled >/dev/null 2>&1  &
+
+    # Give the daemon time to start
+    sleep 60
+
+    # Now bring the VPN up
+    tailscale up -authkey "$1" --accept-routes
+}
+
+function main()
+{
+    #TODO: Test for exactly 1 argument; the 1Password address/repo name
+    # Sign into 1Password
+    if [[ -f /usr/local/bin/op ]]
+    then
+        eval $(op signin $1)
+    else
+        echo "1Password CLI not available; execute with authkey as:"
+        echo "$ tailscale start <authkey>"
+        exit 1
+    fi
+
+    # Get the authkey from 1Password host item
+    AUTHKEY=$(op get item "$(hostname)" --fields authkey)
+
+    #TODO: Test return code?
+    # Now start-up the VPN
+    start $AUTHKEY
+}
+
+# We set +u here because $1 might be unset if script has been called without
+# parameters
+set +u
+
+if declare -f -- "$1" &> /dev/null
+then
+    # We've been called like this: path/script function <params>
+    # AND that function name exists in this script file.
+    "$@"
+else
+    # We've been called without a function name, so execute main
+    main "$@"
+fi
