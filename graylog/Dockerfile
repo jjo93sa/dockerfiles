@@ -34,21 +34,24 @@
 # License:
 #   MIT, see LICENSE file in repoistory root.
 #
-ARG  TAG=3.1
+ARG  TAG=4.0
 FROM graylog/graylog:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "work in progress"
-LABEL version "0.2"
+LABEL version "0.4"
 
 ARG GRAYLOG_UID=1100
 ARG GRAYLOG_GID=1100
+ARG GEOLITE_DB=GeoLite2-City_20201103
 
 USER root
 
-ADD  assets/GeoLite2-City_20190820.tar.gz GeoLite2-City
+RUN mkdir /etc/graylog
+
+ADD  assets/"${GEOLITE_DB}".tar.gz GeoLite2-City
 RUN chown --recursive "${GRAYLOG_UID}":"${GRAYLOG_GID}" GeoLite2-City
-RUN mv GeoLite2-City/GeoLite2-City_20190820/GeoLite2-City.mmdb GeoLite2-City/
+RUN mv GeoLite2-City/"${GEOLITE_DB}"/GeoLite2-City.mmdb /etc/graylog/
 
 USER graylog
 
