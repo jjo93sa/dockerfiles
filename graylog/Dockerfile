@@ -43,15 +43,20 @@ LABEL version "0.4"
 
 ARG GRAYLOG_UID=1100
 ARG GRAYLOG_GID=1100
-ARG GEOLITE_DB=GeoLite2-City_20201103
+ARG GEOLITE2=GeoLite2-City_20210713
+ENV GEOLITE2=${GEOLITE2}
 
 USER root
 
-RUN mkdir /etc/graylog
+RUN mkdir -p  /etc/graylog
 
-ADD  assets/"${GEOLITE_DB}".tar.gz GeoLite2-City
-RUN chown --recursive "${GRAYLOG_UID}":"${GRAYLOG_GID}" GeoLite2-City
-RUN mv GeoLite2-City/"${GEOLITE_DB}"/GeoLite2-City.mmdb /etc/graylog/
+ADD  assets/${GEOLITE2}.tar.gz /etc/graylog/GeoLite2-City
+ADD  assets/exponents.csv /etc/graylog/exponents.csv
+RUN mv /etc/graylog/GeoLite2-City/${GEOLITE2}/GeoLite2-City.mmdb /etc/graylog/GeoLite2-City.mmdb
+
+RUN chown --recursive "${GRAYLOG_UID}":"${GRAYLOG_GID}" /etc/graylog
+
+RUN chown --recursive "${GRAYLOG_UID}":"${GRAYLOG_GID}" /usr/share/graylog/plugin
 
 USER graylog
 
