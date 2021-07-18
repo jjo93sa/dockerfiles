@@ -55,8 +55,6 @@
 ARG CRON_SPEC="29 17 * * 3"
 ARG REG=r.j2o.it
 ARG TAG=latest
-FROM $REG/cron:$TAG
-
 FROM alpine:$TAG AS intermediate
 
 # Install git in intermediate

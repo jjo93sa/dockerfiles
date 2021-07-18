@@ -37,18 +37,32 @@
 #   MIT, see LICENSE file in repository root
 #
 
-# Ensure we have the tokens needed for Pushover operation:
-: "${PO_USER_TOKEN:?PO_USER_TOKEN env var must be set to use PushOver service}"
-: "${PO_APP_TOKEN:?PO_APP_TOKEN env var must be set to use PushOver service}"
+#PO_USER_TOKEN
+#PO_APP_TOKEN
 
-# This function takes a message as the firt argument, or from a pipe, and sends
+#export NOTIFICATION_SCRIPT=$(basename $0)
+
+function init()
+{
+   local ENVVARS="PO_USER_TOKEN PO_APP_TOKEN"
+
+   for a in $ENVVARS; do
+       sed -i -e "s/#$a/$(env | grep $a)/" $(basename $0)
+   done
+}
+
+# This function takes a message as the first argument, or from a pipe, and sends
 # it via Pushover.
 # Parameters:
 # -- [$1 - message to send]
 function pushover()
 {
+    # Ensure we have the tokens needed for Pushover operation:
+    : "${PO_USER_TOKEN:?PO_USER_TOKEN env var must be set to use PushOver service}"
+    : "${PO_APP_TOKEN:?PO_APP_TOKEN env var must be set to use PushOver service}"
+
     # Either msg text supplied by pipe, or as first parameter
-    local TEXT=${1:-$(</dev/stdin)}
+    local TEXT=${@:-$(</dev/stdin)}
 
     # If we still haven't got any text, let's just send the PID
     if [ -z "$TEXT" ]
@@ -73,6 +87,15 @@ function pushover()
 # A smart bit of trickery to see if this script is running as exe or as source
 if [[ "$0" == "$BASH_SOURCE" ]]; then
     # we haven't been sourced, so run as executable
-    pushover "$1"
-    exit $?
+
+    if declare -f -- "$1" &> /dev/null
+    then
+        # We've been called like this: path/script function <params>
+        # AND that function name exists in this script file.
+        "$@"
+    else
+        # We've been called without a function name, so execute main
+        pushover "$@"
+        exit $?
+    fi
 fi

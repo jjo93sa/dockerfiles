@@ -39,7 +39,7 @@ FROM graylog/graylog-enterprise:$TAG
 
 LABEL maintainer "dr.j.osborne@gmail.com"
 LABEL status "work in progress"
-LABEL version "0.4"
+LABEL version "0.5"
 
 ARG GRAYLOG_UID=1100
 ARG GRAYLOG_GID=1100
@@ -54,14 +54,14 @@ ADD  assets/${GEOLITE2}.tar.gz /etc/graylog/GeoLite2-City
 ADD  assets/exponents.csv /etc/graylog/exponents.csv
 RUN mv /etc/graylog/GeoLite2-City/${GEOLITE2}/GeoLite2-City.mmdb /etc/graylog/GeoLite2-City.mmdb
 
-RUN mkdir -p /usr/share/graylog-server/scripts
+RUN mkdir -p /usr/share/graylog/scripts
 
-ADD assets/pushover /usr/share/graylog-server/scripts
-RUN chmod 0755 /usr/share/graylog-server/scripts/pushover
+ADD assets/pushover /usr/share/graylog/scripts
+RUN chmod 0755 /usr/share/graylog/scripts/pushover
 
 RUN chown --recursive "${GRAYLOG_UID}":"${GRAYLOG_GID}" /etc/graylog
 
-RUN chown --recursive "${GRAYLOG_UID}":"${GRAYLOG_GID}" /usr/share/graylog/plugin
+RUN chown --recursive "${GRAYLOG_UID}":"${GRAYLOG_GID}" /usr/share/graylog/scripts
 
 USER graylog
 
