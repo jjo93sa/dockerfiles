@@ -72,7 +72,7 @@ function pushover()
 
     # Removed 2018-09-20: Pushover prepends date-time stamp so we don't need to
     #local USER_MESSAGE="message=$(date -u "+%Y-%m-%d %H:%M:%S"): $TEXT"
-    local USER_MESSAGE="message=$TEXT"
+    local USER_MESSAGE="message=${TEXT//\"/}"
 
     local PUSHOVER_RESPONSE=$(curl -s --form-string "token=$PO_APP_TOKEN" \
         --form-string "user=$PO_USER_TOKEN" \
