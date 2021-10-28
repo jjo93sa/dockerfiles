@@ -1,0 +1,9 @@
+#!/bin/bash
+
+case "${1}" in
+   "") exit 1 ;;
+   0x0109) curl -XPUT -H "Content-type: application/json" -d '{"on":true}' 'http://10.10.40.200/api/G9ciVht7dNKKK2Xj9UgG2kZ81QpJrrBEbVPFn3VN/groups/9/action' ;;
+   0x010A) curl -XPUT -H "Content-type: application/json" -d '{"on":false}' 'http://10.10.40.200/api/G9ciVht7dNKKK2Xj9UgG2kZ81QpJrrBEbVPFn3VN/groups/9/action' ;;
+   *) exit 2;;
+esac
+

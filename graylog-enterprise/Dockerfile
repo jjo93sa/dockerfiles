@@ -54,14 +54,9 @@ ADD  assets/${GEOLITE2}.tar.gz /etc/graylog/GeoLite2-City
 ADD  assets/exponents.csv /etc/graylog/exponents.csv
 RUN mv /etc/graylog/GeoLite2-City/${GEOLITE2}/GeoLite2-City.mmdb /etc/graylog/GeoLite2-City.mmdb
 
-RUN mkdir -p /usr/share/graylog/scripts
-
-ADD assets/pushover /usr/share/graylog/scripts
-RUN chmod 0755 /usr/share/graylog/scripts/pushover
-
+COPY --chown="${GRAYLOG_UID}":"${GRAYLOG_GID}" assets/hue assets/pushover /usr/share/graylog/data/scripts/
+RUN chmod 0755 /usr/share/graylog/data/scripts/*
 RUN chown --recursive "${GRAYLOG_UID}":"${GRAYLOG_GID}" /etc/graylog
-
-RUN chown --recursive "${GRAYLOG_UID}":"${GRAYLOG_GID}" /usr/share/graylog/scripts
 
 USER graylog
 
